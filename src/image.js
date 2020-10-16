@@ -5,9 +5,6 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const winston = require('winston');
-const util = require('util');
-const readFileAsync = util.promisify(fs.readFile);
-const writeFileAsync = util.promisify(fs.writeFile);
 
 const file = require('./file');
 const plugins = require('./plugins');
@@ -26,10 +23,6 @@ function requireSharp() {
 
 image.isFileTypeAllowed = async function (path) {
 	const plugins = require('./plugins');
-	// deprecated: remove in 1.14.0
-	if (plugins.hasListeners('filter:file.isFileTypeAllowed')) {
-		return await plugins.fireHook('filter:file.isFileTypeAllowed', path);
-	}
 	if (plugins.hasListeners('filter:image.isFileTypeAllowed')) {
 		return await plugins.fireHook('filter:image.isFileTypeAllowed', path);
 	}
@@ -50,7 +43,7 @@ image.resizeImage = async function (data) {
 		});
 	} else {
 		const sharp = requireSharp();
-		const buffer = await readFileAsync(data.path);
+		const buffer = await fs.promises.readFile(data.path);
 		const sharpImage = sharp(buffer, {
 			failOnError: true,
 		});
@@ -97,11 +90,11 @@ image.stripEXIF = async function (path) {
 		return;
 	}
 	try {
-		const buffer = await readFileAsync(path);
+		const buffer = await fs.promises.readFile(path);
 		const sharp = requireSharp();
 		await sharp(buffer, { failOnError: true }).rotate().toFile(path);
 	} catch (err) {
-		winston.error(err);
+		winston.error(err.stack);
 	}
 };
 
@@ -115,7 +108,7 @@ image.checkDimensions = async function (path) {
 };
 
 image.convertImageToBase64 = async function (path) {
-	return await readFileAsync(path, 'base64');
+	return await fs.promises.readFile(path, 'base64');
 };
 
 image.mimeFromBase64 = function (imageData) {
@@ -136,7 +129,7 @@ image.writeImageDataToTempFile = async function (imageData) {
 
 	const buffer = Buffer.from(imageData.slice(imageData.indexOf('base64') + 7), 'base64');
 
-	await writeFileAsync(filepath, buffer, { encoding: 'base64' });
+	await fs.promises.writeFile(filepath, buffer, { encoding: 'base64' });
 	return filepath;
 };
 

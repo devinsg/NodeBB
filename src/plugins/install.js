@@ -7,12 +7,12 @@ const nconf = require('nconf');
 const os = require('os');
 const cproc = require('child_process');
 const util = require('util');
+const request = require('request-promise-native');
 
 const db = require('../database');
 const meta = require('../meta');
 const pubsub = require('../pubsub');
-
-const statAsync = util.promisify(fs.stat);
+const { paths } = require('../constants');
 
 const supportedPackageManagerList = require('../cli/package-install').supportedPackageManager; // load config from src/cli/package-install.js
 const packageManager = supportedPackageManagerList.indexOf(nconf.get('package_manager')) >= 0 ? nconf.get('package_manager') : 'npm';
@@ -41,7 +41,7 @@ if (process.platform === 'win32') {
 }
 
 module.exports = function (Plugins) {
-	if (nconf.get('isPrimary') === 'true') {
+	if (nconf.get('isPrimary')) {
 		pubsub.on('plugins:toggleInstall', function (data) {
 			if (data.hostname !== os.hostname()) {
 				toggleInstall(data.id, data.version);
@@ -66,6 +66,20 @@ module.exports = function (Plugins) {
 		meta.reloadRequired = true;
 		Plugins.fireHook(isActive ? 'action:plugin.deactivate' : 'action:plugin.activate', { id: id });
 		return { id: id, active: !isActive };
+	};
+
+	Plugins.checkWhitelist = async function (id, version) {
+		const body = await request({
+			method: 'GET',
+			url: `https://packages.nodebb.org/api/v1/plugins/${encodeURIComponent(id)}`,
+			json: true,
+		});
+
+		if (body && body.code === 'ok' && (version === 'latest' || body.payload.valid.includes(version))) {
+			return;
+		}
+
+		throw new Error('[[error:plugin-not-whitelisted]]');
 	};
 
 	Plugins.toggleInstall = async function (id, version) {
@@ -119,9 +133,9 @@ module.exports = function (Plugins) {
 	}
 
 	Plugins.isInstalled = async function (id) {
-		const pluginDir = path.join(__dirname, '../../node_modules', id);
+		const pluginDir = path.join(paths.nodeModules, id);
 		try {
-			const stats = await statAsync(pluginDir);
+			const stats = await fs.promises.stat(pluginDir);
 			return stats.isDirectory();
 		} catch (err) {
 			return false;

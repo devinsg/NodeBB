@@ -211,6 +211,11 @@ describe('Hash methods', function () {
 				done();
 			});
 		});
+
+		it('should return null and not error', async () => {
+			const data = await db.getObjectField('hashTestObject', ['field1', 'field2']);
+			assert.strictEqual(data, null);
+		});
 	});
 
 	describe('getObjectFields()', function () {
@@ -433,6 +438,10 @@ describe('Hash methods', function () {
 				assert.ifError(err);
 				done();
 			});
+		});
+
+		it('should not error if one of the fields is undefined', async function () {
+			await db.deleteObjectFields('someKey', ['best', undefined]);
 		});
 
 		it('should not error if field is null', function (done) {

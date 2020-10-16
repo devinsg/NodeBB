@@ -8,6 +8,8 @@ const util = require('util');
 
 const db = require('../database');
 const pubsub = require('../pubsub');
+const plugins = require('../plugins');
+const utils = require('../utils');
 const Meta = require('./index');
 const cacheBuster = require('./cacheBuster');
 const defaults = require('../../install/data/defaults');
@@ -44,7 +46,7 @@ function deserialize(config) {
 			try {
 				deserialized[key] = JSON.parse(config[key] || '[]');
 			} catch (err) {
-				winston.error(err);
+				winston.error(err.stack);
 				deserialized[key] = defaults[key];
 			}
 		} else {
@@ -147,6 +149,46 @@ Configs.remove = async function (field) {
 	await db.deleteObjectField('config', field);
 };
 
+Configs.registerHooks = () => {
+	plugins.registerHook('core', {
+		hook: 'filter:settings.set',
+		method: async ({ plugin, settings, quiet }) => {
+			if (plugin === 'core.api' && Array.isArray(settings.tokens)) {
+				// Generate tokens if not present already
+				settings.tokens.forEach((set) => {
+					if (set.token === '') {
+						set.token = utils.generateUUID();
+					}
+
+					if (isNaN(parseInt(set.uid, 10))) {
+						set.uid = 0;
+					}
+				});
+			}
+
+			return { plugin, settings, quiet };
+		},
+	});
+
+	plugins.registerHook('core', {
+		hook: 'filter:settings.get',
+		method: async ({ plugin, values }) => {
+			if (plugin === 'core.api' && Array.isArray(values.tokens)) {
+				values.tokens = values.tokens.map((tokenObj) => {
+					tokenObj.uid = parseInt(tokenObj.uid, 10);
+					if (tokenObj.timestamp) {
+						tokenObj.timestampISO = new Date(parseInt(tokenObj.timestamp, 10)).toISOString();
+					}
+
+					return tokenObj;
+				});
+			}
+
+			return { plugin, values };
+		},
+	});
+};
+
 Configs.cookie = {
 	get: () => {
 		const cookie = {};
@@ -172,10 +214,10 @@ Configs.cookie = {
 };
 
 async function processConfig(data) {
-	ensurePositiveInteger(data, 'maximumUsernameLength');
-	ensurePositiveInteger(data, 'minimumUsernameLength');
-	ensurePositiveInteger(data, 'minimumPasswordLength');
-	ensurePositiveInteger(data, 'maximumAboutMeLength');
+	ensureInteger(data, 'maximumUsernameLength', 1);
+	ensureInteger(data, 'minimumUsernameLength', 1);
+	ensureInteger(data, 'minimumPasswordLength', 1);
+	ensureInteger(data, 'maximumAboutMeLength', 0);
 	if (data.minimumUsernameLength > data.maximumUsernameLength) {
 		throw new Error('[[error:invalid-data]]');
 	}
@@ -186,10 +228,10 @@ async function processConfig(data) {
 	]);
 }
 
-function ensurePositiveInteger(data, field) {
+function ensureInteger(data, field, min) {
 	if (data.hasOwnProperty(field)) {
 		data[field] = parseInt(data[field], 10);
-		if (!(data[field] > 0)) {
+		if (!(data[field] >= min)) {
 			throw new Error('[[error:invalid-data]]');
 		}
 	}

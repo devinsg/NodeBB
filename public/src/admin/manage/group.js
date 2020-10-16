@@ -1,11 +1,13 @@
 'use strict';
 
-
 define('admin/manage/group', [
 	'forum/groups/memberlist',
 	'iconSelect',
-	'admin/modules/colorpicker',
-], function (memberList, iconSelect, colorpicker) {
+	'translator',
+	'categorySelector',
+	'groupSearch',
+	'api',
+], function (memberList, iconSelect, translator, categorySelector, groupSearch, api) {
 	var Groups = {};
 
 	Groups.init = function () {
@@ -24,76 +26,45 @@ define('admin/manage/group', [
 
 		memberList.init('admin/manage/group');
 
-		changeGroupUserTitle.keyup(function () {
+		changeGroupUserTitle.on('keyup', function () {
 			groupLabelPreviewText.text(changeGroupUserTitle.val());
 		});
 
-		changeGroupLabelColor.keyup(function () {
-			groupLabelPreview.css('background', changeGroupLabelColor.val() || '#000000');
+		changeGroupLabelColor.on('keyup input', function () {
+			groupLabelPreview.css('background-color', changeGroupLabelColor.val() || '#000000');
 		});
 
-		changeGroupTextColor.keyup(function () {
+		changeGroupTextColor.on('keyup input', function () {
 			groupLabelPreview.css('color', changeGroupTextColor.val() || '#ffffff');
 		});
 
-		$('[component="groups/members"]').on('click', '[data-action]', function () {
-			var btnEl = $(this);
-			var userRow = btnEl.parents('[data-uid]');
-			var ownerFlagEl = userRow.find('.member-name .user-owner-icon');
-			var isOwner = !ownerFlagEl.hasClass('invisible');
-			var uid = userRow.attr('data-uid');
-			var action = btnEl.attr('data-action');
-
-			switch (action) {
-			case 'toggleOwnership':
-				socket.emit('groups.' + (isOwner ? 'rescind' : 'grant'), {
-					toUid: uid,
-					groupName: groupName,
-				}, function (err) {
-					if (err) {
-						return app.alertError(err.message);
-					}
-					ownerFlagEl.toggleClass('invisible');
-				});
-				break;
-
-			case 'kick':
-				bootbox.confirm('[[admin/manage/groups:edit.confirm-remove-user]]', function (confirm) {
-					if (!confirm) {
-						return;
-					}
-					socket.emit('admin.groups.leave', {
-						uid: uid,
-						groupName: groupName,
-					}, function (err) {
-						if (err) {
-							return app.alertError(err.message);
-						}
-						userRow.slideUp().remove();
-					});
-				});
-				break;
-			default:
-				break;
-			}
-		});
+		setupGroupMembersMenu(groupName);
 
 		$('#group-icon, #group-icon-label').on('click', function () {
+			var currentIcon = groupIcon.attr('value');
 			iconSelect.init(groupIcon, function () {
 				var newIcon = groupIcon.attr('value');
+				if (newIcon === currentIcon) {
+					return;
+				}
 				if (newIcon === 'fa-nbb-none') {
 					newIcon = 'hidden';
 				}
 				$('#group-icon-preview').attr('class', 'fa fa-fw ' + (newIcon || 'hidden'));
+				app.flags = app.flags || {};
+				app.flags._unsaved = true;
 			});
 		});
 
-		colorpicker.enable(changeGroupLabelColor, function (hsb, hex) {
-			groupLabelPreview.css('background-color', '#' + hex);
+		categorySelector.init($('[component="category-selector"]'), function (selectedCategory) {
+			navigateToCategory(selectedCategory.cid);
 		});
 
-		colorpicker.enable(changeGroupTextColor, function (hsb, hex) {
-			groupLabelPreview.css('color', '#' + hex);
+		groupSearch.init($('[component="group-selector"]'));
+
+		$('form [data-property]').on('change', function () {
+			app.flags = app.flags || {};
+			app.flags._unsaved = true;
 		});
 
 		$('#save').on('click', function () {
@@ -129,6 +100,62 @@ define('admin/manage/group', [
 			return false;
 		});
 	};
+
+	function setupGroupMembersMenu(groupName) {
+		$('[component="groups/members"]').on('click', '[data-action]', function () {
+			var btnEl = $(this);
+			var userRow = btnEl.parents('[data-uid]');
+			var ownerFlagEl = userRow.find('.member-name .user-owner-icon');
+			var isOwner = !ownerFlagEl.hasClass('invisible');
+			var uid = userRow.attr('data-uid');
+			var action = btnEl.attr('data-action');
+
+			switch (action) {
+				case 'toggleOwnership':
+					socket.emit('groups.' + (isOwner ? 'rescind' : 'grant'), {
+						toUid: uid,
+						groupName: groupName,
+					}, function (err) {
+						if (err) {
+							return app.alertError(err.message);
+						}
+						ownerFlagEl.toggleClass('invisible');
+					});
+					break;
+
+				case 'kick':
+					bootbox.confirm('[[admin/manage/groups:edit.confirm-remove-user]]', function (confirm) {
+						if (!confirm) {
+							return;
+						}
+						api.del('/groups/' + ajaxify.data.group.slug + '/membership/' + uid).then(() => {
+							userRow.slideUp().remove();
+						});
+					});
+					break;
+				default:
+					break;
+			}
+		});
+	}
+
+	function navigateToCategory(cid) {
+		if (cid) {
+			var url = 'admin/manage/privileges/' + cid + '?group=' + ajaxify.data.group.nameEncoded;
+			if (app.flags && app.flags._unsaved === true) {
+				translator.translate('[[global:unsaved-changes]]', function (text) {
+					bootbox.confirm(text, function (navigate) {
+						if (navigate) {
+							app.flags._unsaved = false;
+							ajaxify.go(url);
+						}
+					});
+				});
+				return;
+			}
+			ajaxify.go(url);
+		}
+	}
 
 	return Groups;
 });

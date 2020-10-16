@@ -49,7 +49,6 @@ define('chat', [
 
 
 	module.onChatMessageReceived = function (data) {
-		var username = data.message.fromUser.username;
 		var isSelf = data.self === 1;
 		data.message.self = data.self;
 
@@ -70,11 +69,7 @@ define('chat', [
 				roomData.silent = true;
 				roomData.uid = app.user.uid;
 				roomData.isSelf = isSelf;
-				module.createModal(roomData, function () {
-					if (!isSelf) {
-						updateTitleAndPlaySound(data.message.mid, username);
-					}
-				});
+				module.createModal(roomData);
 			});
 		}
 	};
@@ -91,13 +86,14 @@ define('chat', [
 
 			if (modal.is(':visible')) {
 				taskbar.updateActive(modal.attr('data-uuid'));
-				ChatsMessages.scrollToBottom(modal.find('.chat-content'));
+				if (ChatsMessages.isAtBottom(modal.find('.chat-content'))) {
+					ChatsMessages.scrollToBottom(modal.find('.chat-content'));
+				}
 			} else if (!ajaxify.data.template.chats) {
 				module.toggleNew(modal.attr('data-uuid'), true, true);
 			}
 
 			if (!isSelf && (!modal.is(':visible') || !app.isFocused)) {
-				updateTitleAndPlaySound(data.message.mid, username);
 				taskbar.push('chat', modal.attr('data-uuid'), {
 					title: '[[modules:chat.chatting_with]] ' + (data.roomName || username),
 					touid: data.message.fromUser.uid,
@@ -105,13 +101,6 @@ define('chat', [
 					isSelf: false,
 				});
 			}
-		});
-	}
-
-	function updateTitleAndPlaySound(mid, username) {
-		app.alternatingTitle('[[modules:chat.user_has_messaged_you, ' + username + ']]');
-		require(['sounds'], function (sounds) {
-			sounds.play('chat-incoming', 'chat.incoming:' + mid);
 		});
 	}
 
@@ -239,6 +228,7 @@ define('chat', [
 				Chats.createAutoComplete(chatModal.find('[component="chat/input"]'));
 
 				Chats.addScrollHandler(chatModal.attr('data-roomid'), data.uid, chatModal.find('.chat-content'));
+				Chats.addScrollBottomHandler(chatModal.find('.chat-content'));
 
 				Chats.addCharactersLeftHandler(chatModal);
 				Chats.addIPHandler(chatModal);

@@ -1,28 +1,29 @@
 'use strict';
 
 
-define('admin/settings', ['uploader'], function (uploader) {
+define('admin/settings', ['uploader', 'mousetrap'], function (uploader, mousetrap) {
 	var Settings = {};
 
-	Settings.init = function () {
-		console.warn('[deprecation] require(\'admin/settings\').init() has been deprecated, please call require(\'admin/settings\').prepare() directly instead.');
-		Settings.prepare();
-	};
-
 	Settings.populateTOC = function () {
-		$('.settings-header').each(function () {
-			var header = $(this).text();
-			var anchor = header.toLowerCase().replace(/ /g, '-').trim();
+		var headers = $('.settings-header');
 
-			$(this).prepend('<a name="' + anchor + '"></a>');
-			$('.section-content ul').append('<li><a href="#' + anchor + '">' + header + '</a></li>');
-		});
+		if (headers.length > 1) {
+			headers.each(function () {
+				var header = $(this).text();
+				var anchor = header.toLowerCase().replace(/ /g, '-').trim();
 
-		var scrollTo = $('a[name="' + window.location.hash.replace('#', '') + '"]');
-		if (scrollTo.length) {
-			$('html, body').animate({
-				scrollTop: (scrollTo.offset().top) + 'px',
-			}, 400);
+				$(this).prepend('<a name="' + anchor + '"></a>');
+				$('.section-content ul').append('<li><a href="#' + anchor + '">' + header + '</a></li>');
+			});
+
+			var scrollTo = $('a[name="' + window.location.hash.replace('#', '') + '"]');
+			if (scrollTo.length) {
+				$('html, body').animate({
+					scrollTop: (scrollTo.offset().top) + 'px',
+				}, 400);
+			}
+		} else {
+			$('.content-header').parents('.row').remove();
 		}
 	};
 
@@ -38,7 +39,7 @@ define('admin/settings', ['uploader'], function (uploader) {
 		var field;
 
 		// Handle unsaved changes
-		$(fields).on('change', function () {
+		fields.on('change', function () {
 			app.flags = app.flags || {};
 			app.flags._unsaved = true;
 		});
@@ -90,6 +91,11 @@ define('admin/settings', ['uploader'], function (uploader) {
 			});
 		});
 
+		mousetrap.bind('ctrl+s', function (ev) {
+			saveBtn.click();
+			ev.preventDefault();
+		});
+
 		handleUploads();
 		setupTagsInput();
 
@@ -121,12 +127,7 @@ define('admin/settings', ['uploader'], function (uploader) {
 					showHelp: uploadBtn.attr('data-help') ? uploadBtn.attr('data-help') === 1 : undefined,
 					accept: uploadBtn.attr('data-accept'),
 				}, function (image) {
-					// need to move these into template, ex data-callback
-					if (ajaxify.currentPage === 'admin/general/sounds') {
-						ajaxify.refresh();
-					} else {
-						$('#' + uploadBtn.attr('data-target')).val(image);
-					}
+					$('#' + uploadBtn.attr('data-target')).val(image);
 				});
 			});
 		});
@@ -156,17 +157,17 @@ define('admin/settings', ['uploader'], function (uploader) {
 			if (field.is('input')) {
 				inputType = field.attr('type');
 				switch (inputType) {
-				case 'text':
-				case 'password':
-				case 'hidden':
-				case 'textarea':
-				case 'number':
-					value = field.val();
-					break;
+					case 'text':
+					case 'password':
+					case 'hidden':
+					case 'textarea':
+					case 'number':
+						value = field.val();
+						break;
 
-				case 'checkbox':
-					value = field.prop('checked') ? '1' : '0';
-					break;
+					case 'checkbox':
+						value = field.prop('checked') ? '1' : '0';
+						break;
 				}
 			} else if (field.is('textarea') || field.is('select')) {
 				value = field.val();

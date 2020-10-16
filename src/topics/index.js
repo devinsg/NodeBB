@@ -86,7 +86,7 @@ Topics.getTopicsByTids = async function (tids, options) {
 		user.getSettings(uid),
 		user.getUsersFields(uids, ['uid', 'username', 'fullname', 'userslug', 'reputation', 'postcount', 'picture', 'signature', 'banned', 'status']),
 		user.getMultipleUserSettings(uids),
-		categories.getCategoriesFields(cids, ['cid', 'name', 'slug', 'icon', 'image', 'imageClass', 'bgColor', 'color', 'disabled']),
+		categories.getCategoriesFields(cids, ['cid', 'name', 'slug', 'icon', 'backgroundImage', 'imageClass', 'bgColor', 'color', 'disabled']),
 		Topics.hasReadTopics(tids, uid),
 		Topics.isIgnoring(tids, uid),
 		Topics.getUserBookmarks(tids, uid),
@@ -118,8 +118,10 @@ Topics.getTopicsByTids = async function (tids, options) {
 
 			topic.isOwner = topic.uid === parseInt(uid, 10);
 			topic.ignored = isIgnored[i];
-			topic.unread = !hasRead[i] && !isIgnored[i];
-			topic.bookmark = sortOldToNew ? Math.max(1, topic.postcount + 2 - bookmarks[i]) : bookmarks[i];
+			topic.unread = parseInt(uid, 10) > 0 && !hasRead[i] && !isIgnored[i];
+			topic.bookmark = sortOldToNew ?
+				Math.max(1, topic.postcount + 2 - bookmarks[i]) :
+				Math.min(topic.postcount, bookmarks[i] + 1);
 			topic.unreplied = !topic.teaser;
 
 			topic.icons = [];
@@ -144,6 +146,7 @@ Topics.getTopicWithPosts = async function (topicData, set, uid, start, stop, rev
 		deleter,
 		merger,
 		related,
+		posterCount,
 	] = await Promise.all([
 		getMainPostAndReplies(topicData, set, uid, start, stop, reverse),
 		categories.getCategoryData(topicData.cid),
@@ -155,11 +158,14 @@ Topics.getTopicWithPosts = async function (topicData, set, uid, start, stop, rev
 		getDeleter(topicData),
 		getMerger(topicData),
 		getRelated(topicData, uid),
+		db.sortedSetCard('tid:' + topicData.tid + ':posters'),
 	]);
 
 	topicData.posts = posts;
 	topicData.category = category;
 	topicData.tagWhitelist = tagWhitelist[0];
+	topicData.minTags = category.minTags;
+	topicData.maxTags = category.maxTags;
 	topicData.thread_tools = threadTools.tools;
 	topicData.isFollowing = followData[0].following;
 	topicData.isNotFollowing = !followData[0].following && !followData[0].ignoring;
@@ -175,6 +181,7 @@ Topics.getTopicWithPosts = async function (topicData, set, uid, start, stop, rev
 		topicData.mergedTimestampISO = utils.toISOString(topicData.mergedTimestamp);
 	}
 	topicData.related = related || [];
+	topicData.posterCount = posterCount;
 	topicData.unreplied = topicData.postcount === 1;
 	topicData.icons = [];
 
@@ -281,4 +288,4 @@ Topics.search = async function (tid, term) {
 	return Array.isArray(pids) ? pids : [];
 };
 
-Topics.async = require('../promisify')(Topics);
+require('../promisify')(Topics);

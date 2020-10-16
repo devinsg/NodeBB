@@ -31,6 +31,9 @@ Tags.parse = async (req, data, meta, link) => {
 		name: 'msapplication-badge',
 		content: 'frequency=30; polling-uri=' + nconf.get('url') + '/sitemap.xml',
 		noEscape: true,
+	}, {
+		name: 'theme-color',
+		content: Meta.config.themeColor || '#ffffff',
 	}];
 
 	if (Meta.config.keywords) {
@@ -55,7 +58,7 @@ Tags.parse = async (req, data, meta, link) => {
 		href: nconf.get('relative_path') + nconf.get('upload_url') + '/system/favicon.ico' + (Meta.config['cache-buster'] ? '?' + Meta.config['cache-buster'] : ''),
 	}, {
 		rel: 'manifest',
-		href: nconf.get('relative_path') + '/manifest.json',
+		href: nconf.get('relative_path') + '/manifest.webmanifest',
 	}];
 
 	if (plugins.hasListeners('filter:search.query')) {

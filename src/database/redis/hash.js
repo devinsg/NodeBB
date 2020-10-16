@@ -75,7 +75,7 @@ module.exports = function (module) {
 		if (cachedData[key]) {
 			return cachedData[key].hasOwnProperty(field) ? cachedData[key][field] : null;
 		}
-		return await module.client.async.hget(key, field);
+		return await module.client.async.hget(key, String(field));
 	};
 
 	module.getObjectFields = async function (key, fields) {
@@ -154,7 +154,11 @@ module.exports = function (module) {
 	};
 
 	module.deleteObjectFields = async function (key, fields) {
-		if (!Array.isArray(fields) || !fields.length) {
+		if (!key || !Array.isArray(fields) || !fields.length) {
+			return;
+		}
+		fields = fields.filter(Boolean);
+		if (!fields.length) {
 			return;
 		}
 		await module.client.async.hdel(key, fields);

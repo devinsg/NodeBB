@@ -4,9 +4,6 @@ require('colors');
 const path = require('path');
 const winston = require('winston');
 const fs = require('fs');
-const util = require('util');
-
-const fsAccessAsync = util.promisify(fs.access);
 
 const db = require('../database');
 const events = require('../events');
@@ -14,11 +11,7 @@ const meta = require('../meta');
 const plugins = require('../plugins');
 const widgets = require('../widgets');
 const privileges = require('../privileges');
-
-const dirname = require('./paths').baseDir;
-
-const themeNamePattern = /^(@.*?\/)?nodebb-theme-.*$/;
-const pluginNamePattern = /^(@.*?\/)?nodebb-(theme|plugin|widget|rewards)-.*$/;
+const { paths, pluginNamePattern, themeNamePattern } = require('../constants');
 
 exports.reset = async function (options) {
 	const map = {
@@ -93,14 +86,14 @@ exports.reset = async function (options) {
 };
 
 async function resetSettings() {
-	await privileges.global.give(['local:login'], 'registered-users');
+	await privileges.global.give(['groups:local:login'], 'registered-users');
 	winston.info('[reset] registered-users given login privilege');
 	winston.info('[reset] Settings reset to default');
 }
 
 async function resetTheme(themeId) {
 	try {
-		await fsAccessAsync(path.join(dirname, 'node_modules', themeId, 'package.json'));
+		await fs.promises.access(path.join(paths.nodeModules, themeId, 'package.json'));
 	} catch (err) {
 		winston.warn('[reset] Theme `%s` is not installed on this forum', themeId);
 		throw new Error('theme-not-found');
@@ -138,10 +131,9 @@ async function resetPlugin(pluginId) {
 		} else {
 			winston.warn('[reset] Plugin `%s` was not active on this forum', pluginId);
 			winston.info('[reset] No action taken.');
-			throw new Error('plugin-not-active');
 		}
 	} catch (err) {
-		winston.error('[reset] Could not disable plugin: ' + pluginId + ' encountered error %s', err);
+		winston.error('[reset] Could not disable plugin: ' + pluginId + ' encountered error %s', err.stack);
 		throw err;
 	}
 }

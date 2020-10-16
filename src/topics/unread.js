@@ -78,6 +78,7 @@ module.exports = function (Topics) {
 			tidsByFilter: data.tidsByFilter,
 			cid: params.cid,
 			filter: params.filter,
+			query: params.query || {},
 		});
 		return result;
 	};
@@ -101,10 +102,21 @@ module.exports = function (Topics) {
 		]);
 
 		const userReadTime = _.mapValues(_.keyBy(userScores, 'value'), 'score');
-		const isTopicsFollowed = _.mapValues(_.keyBy(followedTids, 'value'), 'score');
+		const isTopicsFollowed = {};
+		followedTids.forEach((t) => {
+			isTopicsFollowed[t.value] = true;
+		});
+		const unreadFollowed = await db.isSortedSetMembers(
+			'uid:' + params.uid + ':followed_tids', tids_unread.map(t => t.value)
+		);
 
-		const unreadTopics = _.unionWith(categoryTids, followedTids.concat(tids_unread), (a, b) => a.value === b.value)
+		tids_unread.forEach((t, i) => {
+			isTopicsFollowed[t.value] = unreadFollowed[i];
+		});
+
+		const unreadTopics = _.unionWith(categoryTids, followedTids, (a, b) => a.value === b.value)
 			.filter(t => !ignoredTids.includes(t.value) && (!userReadTime[t.value] || t.score > userReadTime[t.value]))
+			.concat(tids_unread.filter(t => !ignoredTids.includes(t.value)))
 			.sort((a, b) => b.score - a.score);
 
 		let tids = _.uniq(unreadTopics.map(topic => topic.value)).slice(0, 200);
@@ -177,9 +189,14 @@ module.exports = function (Topics) {
 	}
 
 	async function getFollowedTids(params) {
-		const tids = await db.getSortedSetRevRange('uid:' + params.uid + ':followed_tids', 0, -1);
+		let tids = await db.getSortedSetMembers('uid:' + params.uid + ':followed_tids');
+		const filterCids = params.cid && params.cid.map(cid => parseInt(cid, 10));
+		if (filterCids) {
+			const topicData = await Topics.getTopicsFields(tids, ['tid', 'cid']);
+			tids = topicData.filter(t => filterCids.includes(t.cid)).map(t => t.tid);
+		}
 		const scores = await db.sortedSetScores('topics:recent', tids);
-		const data = tids.map((tid, index) => ({ value: tid, score: scores[index] }));
+		const data = tids.map((tid, index) => ({ value: String(tid), score: scores[index] }));
 		return data.filter(item => item.score > params.cutoff);
 	}
 
@@ -365,6 +382,6 @@ module.exports = function (Topics) {
 
 	Topics.filterUnrepliedTids = async function (tids) {
 		const scores = await db.sortedSetScores('topics:posts', tids);
-		return tids.filter((tid, index) => tid && scores[index] <= 1);
+		return tids.filter((tid, index) => tid && scores[index] !== null && scores[index] <= 1);
 	};
 };

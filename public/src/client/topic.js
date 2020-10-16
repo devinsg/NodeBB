@@ -21,13 +21,12 @@ define('forum/topic', [
 			clearTimeout(Topic.replaceURLTimeout);
 			Topic.replaceURLTimeout = 0;
 		}
+		events.removeListeners();
 
 		if (!String(data.url).startsWith('topic/')) {
 			navigator.disable();
 			components.get('navbar/title').find('span').text('').hide();
 			app.removeAlert('bookmark');
-
-			events.removeListeners();
 
 			require(['search'], function (search) {
 				if (search.topicDOM.active) {
@@ -39,7 +38,7 @@ define('forum/topic', [
 
 	Topic.init = function () {
 		var tid = ajaxify.data.tid;
-
+		currentUrl = ajaxify.currentPage;
 		$(window).trigger('action:topic.loading');
 
 		app.enterRoom('topic_' + tid);
@@ -47,7 +46,7 @@ define('forum/topic', [
 		posts.onTopicPageLoad(components.get('post'));
 
 		postTools.init(tid);
-		threadTools.init(tid);
+		threadTools.init(tid, $('.topic'));
 		events.init();
 
 		sort.handleSort('topicPostSort', 'user.setTopicSort', 'topic/' + ajaxify.data.slug);
@@ -116,7 +115,12 @@ define('forum/topic', [
 	};
 
 	function handleBookmark(tid) {
-		// use the user's bookmark data if available, fallback to local if available
+		if (window.location.hash) {
+			var el = $(utils.escapeHTML(window.location.hash));
+			if (el.length) {
+				return navigator.scrollToElement(el, true, 0);
+			}
+		}
 		var bookmark = ajaxify.data.bookmark || storage.getItem('topic:' + tid + ':bookmark');
 		var postIndex = ajaxify.data.postIndex;
 
@@ -131,7 +135,7 @@ define('forum/topic', [
 				timeout: 0,
 				type: 'info',
 				clickfn: function () {
-					navigator.scrollToIndex(parseInt(bookmark - 1, 10), true);
+					navigator.scrollToIndex(parseInt(bookmark, 10), true);
 				},
 				closefn: function () {
 					storage.removeItem('topic:' + tid + ':bookmark');
@@ -231,7 +235,7 @@ define('forum/topic', [
 
 					history.replaceState({
 						url: newUrl + search,
-					}, null, window.location.protocol + '//' + window.location.host + RELATIVE_PATH + '/' + newUrl + search);
+					}, null, window.location.protocol + '//' + window.location.host + config.relative_path + '/' + newUrl + search);
 				}
 				currentUrl = newUrl;
 			}, 500);
@@ -254,7 +258,7 @@ define('forum/topic', [
 					if (err) {
 						return app.alertError(err.message);
 					}
-					ajaxify.data.bookmark = index;
+					ajaxify.data.bookmark = index + 1;
 				});
 			} else {
 				storage.setItem(bookmarkKey, index);

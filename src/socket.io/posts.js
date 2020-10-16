@@ -13,6 +13,7 @@ const utils = require('../utils');
 
 const apiController = require('../controllers/api');
 
+const sockets = require('.');
 const SocketPosts = module.exports;
 
 require('./posts/edit')(SocketPosts);
@@ -23,6 +24,8 @@ require('./posts/tools')(SocketPosts);
 require('./posts/diffs')(SocketPosts);
 
 SocketPosts.reply = async function (socket, data) {
+	sockets.warnDeprecated(socket, 'POST /api/v3/topics/:tid');
+
 	if (!data || !data.tid || (meta.config.minimumPostLength !== 0 && !data.content)) {
 		throw new Error('[[error:invalid-data]]');
 	}
@@ -166,7 +169,7 @@ SocketPosts.reject = async function (socket, data) {
 };
 
 async function acceptOrReject(method, socket, data) {
-	const canEditQueue = await posts.canEditQueue(socket.uid, data.id);
+	const canEditQueue = await posts.canEditQueue(socket.uid, data);
 	if (!canEditQueue) {
 		throw new Error('[[error:no-privileges]]');
 	}
@@ -174,11 +177,14 @@ async function acceptOrReject(method, socket, data) {
 }
 
 SocketPosts.editQueuedContent = async function (socket, data) {
-	if (!data || !data.id || !data.content) {
+	if (!data || !data.id || (!data.content && !data.title && !data.cid)) {
 		throw new Error('[[error:invalid-data]]');
 	}
-	await posts.editQueuedContent(socket.uid, data.id, data.content);
-	return await plugins.fireHook('filter:parse.post', { postData: data });
+	await posts.editQueuedContent(socket.uid, data);
+	if (data.content) {
+		return await plugins.fireHook('filter:parse.post', { postData: data });
+	}
+	return { postData: data };
 };
 
 require('../promisify')(SocketPosts);

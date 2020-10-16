@@ -1,7 +1,12 @@
 'use strict';
 
 
-define('admin/extend/widgets', ['jqueryui'], function () {
+define('admin/extend/widgets', [
+	'jquery-ui/widgets/sortable',
+	'jquery-ui/widgets/draggable',
+	'jquery-ui/widgets/droppable',
+	'jquery-ui/widgets/datepicker',
+], function () {
 	var Widgets = {};
 
 	Widgets.init = function () {
@@ -203,7 +208,7 @@ define('admin/extend/widgets', ['jqueryui'], function () {
 			return widget;
 		}
 
-		$.get(RELATIVE_PATH + '/api/admin/extend/widgets', function (data) {
+		$.get(config.relative_path + '/api/admin/extend/widgets', function (data) {
 			var areas = data.areas;
 
 			for (var i = 0; i < areas.length; i += 1) {

@@ -6,46 +6,68 @@ app = window.app || {};
 app.isFocused = true;
 app.currentRoom = null;
 app.widgets = {};
+app.flags = {};
 app.cacheBuster = null;
 
 (function () {
+	var appLoaded = false;
 	var params = utils.params();
 	var showWelcomeMessage = !!params.loggedin;
 	var registerMessage = params.register;
 	var isTouchDevice = utils.isTouchDevice();
 
-	require(['benchpress'], function (Benchpress) {
-		Benchpress.setGlobal('config', config);
-		if (Object.defineProperty) {
-			Object.defineProperty(window, 'templates', {
-				configurable: true,
-				enumerable: true,
-				get: function () {
-					console.warn('[deprecated] Accessing benchpress (formerly known as templates.js) globally is deprecated. Use `require(["benchpress"], function (Benchpress) { ... })` instead');
-					return Benchpress;
-				},
-			});
-		} else {
-			window.templates = Benchpress;
-		}
-	});
-
 	app.cacheBuster = config['cache-buster'];
 
-	bootbox.setDefaults({
-		locale: config.userLang,
+	$(document).ready(function () {
+		ajaxify.parseData();
+		app.load();
 	});
 
+	app.coldLoad = function () {
+		if (appLoaded) {
+			ajaxify.coldLoad();
+		} else {
+			$(window).on('action:app.load', function () {
+				ajaxify.coldLoad();
+			});
+		}
+	};
+
+	app.handleEarlyClicks = function () {
+		/**
+		 * Occasionally, a button or anchor (not meant to be ajaxified) is clicked before
+		 * ajaxify is ready. Capture that event and re-click it once NodeBB is ready.
+		 *
+		 * e.g. New Topic/Reply, post tools
+		 */
+		if (document.body) {
+			var earlyQueue = [];	// once we can ES6, use Set instead
+			var earlyClick = function (ev) {
+				var btnEl = ev.target.closest('button');
+				var anchorEl = ev.target.closest('a');
+				if (!btnEl && anchorEl && (anchorEl.getAttribute('data-ajaxify') === 'false' || anchorEl.href === '#')) {
+					btnEl = anchorEl;
+				}
+				if (btnEl && !earlyQueue.includes(btnEl)) {
+					earlyQueue.push(btnEl);
+					ev.stopImmediatePropagation();
+					ev.preventDefault();
+				}
+			};
+			document.body.addEventListener('click', earlyClick);
+			$(window).on('action:ajaxify.end', function () {
+				document.body.removeEventListener('click', earlyClick);
+				earlyQueue.forEach(function (el) {
+					el.click();
+				});
+			});
+		} else {
+			setTimeout(app.handleEarlyClicks, 50);
+		}
+	};
+	app.handleEarlyClicks();
+
 	app.load = function () {
-		app.loadProgressiveStylesheet();
-
-		overrides.overrideTimeago();
-
-		var url = ajaxify.start(window.location.pathname.slice(1) + window.location.search + window.location.hash);
-		ajaxify.updateHistory(url, true);
-		ajaxify.parseData();
-		ajaxify.end(url, app.template);
-
 		handleStatusChange();
 
 		if (config.searchEnabled) {
@@ -57,159 +79,78 @@ app.cacheBuster = null;
 			app.newTopic();
 		});
 
-		$('#header-menu .container').on('click', '[component="user/logout"]', app.logout);
+		$('#header-menu .container').on('click', '[component="user/logout"]', function () {
+			app.logout();
+			return false;
+		});
 
 		Visibility.change(function (event, state) {
-			if (state === 'visible') {
-				app.isFocused = true;
-				app.alternatingTitle('');
-			} else if (state === 'hidden') {
-				app.isFocused = false;
-			}
+			app.isFocused = state === 'visible';
 		});
 
 		createHeaderTooltips();
 		app.showEmailConfirmWarning();
 		app.showCookieWarning();
+		registerServiceWorker();
 
-		socket.removeAllListeners('event:nodebb.ready');
-		socket.on('event:nodebb.ready', function (data) {
-			if ((data.hostname === app.upstreamHost) && (!app.cacheBuster || app.cacheBuster !== data['cache-buster'])) {
-				app.cacheBuster = data['cache-buster'];
-
-				app.alert({
-					alert_id: 'forum_updated',
-					title: '[[global:updated.title]]',
-					message: '[[global:updated.message]]',
-					clickfn: function () {
-						window.location.reload();
-					},
-					type: 'warning',
-				});
-			}
-		});
-		socket.on('event:livereload', function () {
-			if (app.user.isAdmin && !ajaxify.currentPage.match(/admin/)) {
-				window.location.reload();
-			}
-		});
-
-		require(['taskbar', 'helpers', 'forum/pagination'], function (taskbar, helpers, pagination) {
-			taskbar.init();
-
-			helpers.register();
-
-			pagination.init();
-
-			$(window).trigger('action:app.load');
-		});
-	};
-
-	app.updateHeader = function (data, callback) {
-		/**
-		 * data:
-		 *   header (obj)
-		 *   config (obj)
-		 *   next (string)
-		 */
 		require([
-			'benchpress',
+			'taskbar',
+			'helpers',
+			'forum/pagination',
 			'translator',
 			'forum/unread',
 			'forum/header/notifications',
 			'forum/header/chat',
-		], function (Benchpress, translator, Unread, Notifications, Chat) {
-			app.user = data.header.user;
-			data.header.config = data.config;
-			config = data.config;
-			Benchpress.setGlobal('config', config);
+			'timeago/jquery.timeago',
+		], function (taskbar, helpers, pagination, translator, unread, notifications, chat) {
+			notifications.prepareDOM();
+			chat.prepareDOM();
+			translator.prepareDOM();
+			taskbar.init();
+			helpers.register();
+			pagination.init();
 
-			var htmlEl = $('html');
-			htmlEl.attr('data-dir', data.header.languageDirection);
-			htmlEl.css('direction', data.header.languageDirection);
+			if (app.user.uid > 0) {
+				unread.initUnreadTopics();
+			}
 
-			// Manually reconnect socket.io
-			socket.close();
-			socket.open();
-
-			// Re-render top bar menu
-			var toRender = {
-				'slideout-menu': $('.slideout-menu'),
-				menu: $('#header-menu .container'),
-				'chats-menu': $('#chats-menu'),
-			};
-			Promise.all(Object.keys(toRender).map(function (tpl) {
-				return Benchpress.render('partials/' + tpl, data.header).then(function (render) {
-					return translator.Translator.create().translate(render);
+			overrides.overrideTimeago();
+			if (app.user.timeagoCode && app.user.timeagoCode !== 'en') {
+				require(['timeago/locales/jquery.timeago.' + app.user.timeagoCode], function () {
+					$(window).trigger('action:app.load');
+					appLoaded = true;
 				});
-			})).then(function (html) {
-				Object.keys(toRender)
-					.map(function (k) { return toRender[k]; })
-					.forEach(function (element, idx) {
-						element.html(html[idx]);
-					});
-				Unread.initUnreadTopics();
-				Notifications.prepareDOM();
-				Chat.prepareDOM();
-				app.reskin(data.header.bootswatchSkin);
-				translator.switchTimeagoLanguage(callback);
-				bootbox.setLocale(config.userLang);
-
-				if (config.searchEnabled) {
-					app.handleSearch();
-				}
-
-				handleStatusChange();
-
-				$(window).trigger('action:app.updateHeader');
-			});
+			} else {
+				$(window).trigger('action:app.load');
+				appLoaded = true;
+			}
 		});
 	};
 
-	app.logout = function (e) {
-		if (e) {
-			e.preventDefault();
-		}
+	app.logout = function (redirect) {
+		redirect = redirect === undefined ? true : redirect;
 		$(window).trigger('action:app.logout');
-
-		/*
-			Set session refresh flag (otherwise the session check will trip and throw invalid session modal)
-			We know the session is/will be invalid (uid mismatch) because the user is logging out
-		*/
-		app.flags = app.flags || {};
-		app.flags._sessionRefresh = true;
 
 		$.ajax(config.relative_path + '/logout', {
 			type: 'POST',
 			headers: {
 				'x-csrf-token': config.csrf_token,
 			},
+			beforeSend: function () {
+				app.flags._logout = true;
+			},
 			success: function (data) {
-				// ACP logouts go to frontend via page load, not ajaxify
-				if (ajaxify.data.template.name.startsWith('admin/')) {
-					$(window).trigger('action:app.loggedOut', data);
-					window.location.href = config.relative_path + (data.next || '/');
-					return;
-				}
-
-				app.updateHeader(data, function () {
-					// Overwrite in hook (below) to redirect elsewhere
-					data.next = data.next || undefined;
-
-					$(window).trigger('action:app.loggedOut', data);
+				$(window).trigger('action:app.loggedOut', data);
+				if (redirect) {
 					if (data.next) {
-						if (data.next.startsWith('http')) {
-							window.location.href = data.next;
-							return;
-						}
-
-						ajaxify.go(data.next);
+						window.location.href = data.next;
 					} else {
-						ajaxify.refresh();
+						window.location.reload();
 					}
-				});
+				}
 			},
 		});
+		return false;
 	};
 
 	app.alert = function (params) {
@@ -226,6 +167,7 @@ app.cacheBuster = null;
 
 	app.alertSuccess = function (message, timeout) {
 		app.alert({
+			alert_id: utils.generateUUID(),
 			title: '[[global:alert.success]]',
 			message: message,
 			type: 'success',
@@ -237,10 +179,12 @@ app.cacheBuster = null;
 		message = message.message || message;
 
 		if (message === '[[error:invalid-session]]') {
+			app.logout(false);
 			return app.handleInvalidSession();
 		}
 
 		app.alert({
+			alert_id: utils.generateUUID(),
 			title: '[[global:alert.error]]',
 			message: message,
 			type: 'danger',
@@ -249,31 +193,23 @@ app.cacheBuster = null;
 	};
 
 	app.handleInvalidSession = function () {
-		if (app.flags && app.flags._sessionRefresh) {
+		if (app.flags._logout) {
 			return;
 		}
 
-		app.flags = app.flags || {};
-		app.flags._sessionRefresh = true;
-
 		socket.disconnect();
-
-		require(['translator'], function (translator) {
-			translator.translate('[[error:invalid-session-text]]', function (translated) {
-				bootbox.alert({
-					title: '[[error:invalid-session]]',
-					message: translated,
-					closeButton: false,
-					callback: function () {
-						window.location.reload();
-					},
-				});
-			});
+		bootbox.alert({
+			title: '[[error:invalid-session]]',
+			message: '[[error:invalid-session-text]]',
+			closeButton: false,
+			callback: function () {
+				window.location.reload();
+			},
 		});
 	};
 
 	app.enterRoom = function (room, callback) {
-		callback = callback || function () {};
+		callback = callback || function () { };
 		if (socket && app.user.uid && app.currentRoom !== room) {
 			var previousRoom = app.currentRoom;
 			app.currentRoom = room;
@@ -322,6 +258,7 @@ app.cacheBuster = null;
 			$(this).tooltip({
 				placement: placement || $(this).attr('title-placement') || 'top',
 				title: $(this).attr('title'),
+				container: '#content',
 			});
 		});
 	};
@@ -344,7 +281,7 @@ app.cacheBuster = null;
 
 		utils.addCommasToNumbers($('.formatted-number'));
 
-		app.createUserTooltips();
+		app.createUserTooltips($('#content'));
 
 		app.createStatusTooltips();
 
@@ -368,25 +305,23 @@ app.cacheBuster = null;
 
 		function showAlert(type, message) {
 			switch (messages[type].format) {
-			case 'alert':
-				app.alert({
-					type: 'success',
-					title: messages[type].title,
-					message: messages[type].message,
-					timeout: 5000,
-				});
-				break;
+				case 'alert':
+					app.alert({
+						type: 'success',
+						title: messages[type].title,
+						message: messages[type].message,
+						timeout: 5000,
+					});
+					break;
 
-			case 'modal':
-				require(['translator'], function (translator) {
-					translator.translate(message || messages[type].message, function (translated) {
+				case 'modal':
+					require(['bootbox'], function (bootbox) {
 						bootbox.alert({
 							title: messages[type].title,
-							message: translated,
+							message: message || messages[type].message,
 						});
 					});
-				});
-				break;
+					break;
 			}
 		}
 
@@ -451,7 +386,7 @@ app.cacheBuster = null;
 			});
 		}
 
-		callback = callback || function () {};
+		callback = callback || function () { };
 		if (!app.user.uid) {
 			return app.alertError('[[error:not-logged-in]]');
 		}
@@ -474,70 +409,10 @@ app.cacheBuster = null;
 		});
 	};
 
-	var	titleObj = {
-		active: false,
-		interval: undefined,
-		titles: [],
-	};
-
-	app.alternatingTitle = function (title) {
-		if (typeof title !== 'string') {
-			return;
-		}
-
-		if (title.length > 0 && !app.isFocused) {
-			if (!titleObj.titles[0]) {
-				titleObj.titles[0] = window.document.title;
-			}
-
-			require(['translator'], function (translator) {
-				translator.translate(title, function (translated) {
-					titleObj.titles[1] = translated;
-					if (titleObj.interval) {
-						clearInterval(titleObj.interval);
-					}
-
-					titleObj.interval = setInterval(function () {
-						var title = titleObj.titles[titleObj.titles.indexOf(window.document.title) ^ 1];
-						if (title) {
-							window.document.title = $('<div></div>').html(title).text();
-						}
-					}, 2000);
-				});
-			});
-		} else {
-			if (titleObj.interval) {
-				clearInterval(titleObj.interval);
-			}
-			if (titleObj.titles[0]) {
-				window.document.title = $('<div></div>').html(titleObj.titles[0]).text();
-			}
-		}
-	};
-
-	app.refreshTitle = function (title) {
-		if (!title) {
-			return;
-		}
-		require(['translator'], function (translator) {
-			title = config.titleLayout.replace(/&#123;/g, '{').replace(/&#125;/g, '}')
-				.replace('{pageTitle}', function () { return title; })
-				.replace('{browserTitle}', function () { return config.browserTitle; });
-
-			// Allow translation strings in title on ajaxify (#5927)
-			title = translator.unescape(title);
-
-			translator.translate(title, function (translated) {
-				titleObj.titles[0] = translated;
-				app.alternatingTitle('');
-			});
-		});
-	};
-
 	app.toggleNavbar = function (state) {
 		var navbarEl = $('.navbar');
 		if (navbarEl) {
-			navbarEl.toggleClass('hidden', !state);
+			navbarEl[state ? 'show' : 'hide']();
 		}
 	};
 
@@ -555,7 +430,7 @@ app.cacheBuster = null;
 		});
 
 
-		$('#search-form').parent().tooltip({
+		$('#search-form').tooltip({
 			placement: 'bottom',
 			trigger: 'hover',
 			title: $('#search-button i').attr('title'),
@@ -570,54 +445,131 @@ app.cacheBuster = null;
 	}
 
 	app.enableTopicSearch = function (options) {
-		var quickSearchResults = options.resultEl;
-		var inputEl = options.inputEl;
-		var template = options.template || 'partials/quick-search-results';
+		/* eslint-disable-next-line */
+		var searchOptions = Object.assign({ in: 'titles' }, options.searchOptions);
+		var quickSearchResults = options.searchElements.resultEl;
+		var inputEl = options.searchElements.inputEl;
 		var searchTimeoutId = 0;
-		var currentVal = inputEl.val();
+		var oldValue = inputEl.val();
+		var filterCategoryEl = quickSearchResults.find('.filter-category');
+
+		function updateCategoryFilterName() {
+			if (ajaxify.data.template.category) {
+				require(['translator'], function (translator) {
+					translator.translate('[[search:search-in-category, ' + ajaxify.data.name + ']]', function (translated) {
+						var name = $('<div></div>').html(translated).text();
+						filterCategoryEl.find('.name').text(name);
+					});
+				});
+			}
+			filterCategoryEl.toggleClass('hidden', !ajaxify.data.template.category);
+		}
+
+		function doSearch() {
+			require(['search'], function (search) {
+				/* eslint-disable-next-line */
+				options.searchOptions = Object.assign({}, searchOptions);
+				options.searchOptions.term = inputEl.val();
+				updateCategoryFilterName();
+
+				if (ajaxify.data.template.category) {
+					if (filterCategoryEl.find('input[type="checkbox"]').is(':checked')) {
+						options.searchOptions.categories = [ajaxify.data.cid];
+						options.searchOptions.searchChildren = true;
+					}
+				}
+
+				quickSearchResults.removeClass('hidden').find('.quick-search-results-container').html('');
+				quickSearchResults.find('.loading-indicator').removeClass('hidden');
+				$(window).trigger('action:search.quick.start', options);
+				options.searchOptions.searchOnly = 1;
+				search.api(options.searchOptions, function (data) {
+					quickSearchResults.find('.loading-indicator').addClass('hidden');
+					if (options.hideOnNoMatches && !data.posts.length) {
+						return quickSearchResults.addClass('hidden').find('.quick-search-results-container').html('');
+					}
+					data.posts.forEach(function (p) {
+						var text = $('<div>' + p.content + '</div>').text();
+						var start = Math.max(0, text.toLowerCase().indexOf(inputEl.val().toLowerCase()) - 40);
+						p.snippet = utils.escapeHTML((start > 0 ? '...' : '') +
+							text.slice(start, start + 80) +
+							(text.length - start > 80 ? '...' : ''));
+					});
+					app.parseAndTranslate('partials/quick-search-results', data, function (html) {
+						if (html.length) {
+							html.find('.timeago').timeago();
+						}
+						quickSearchResults.toggleClass('hidden', !html.length || !inputEl.is(':focus'))
+							.find('.quick-search-results-container')
+							.html(html.length ? html : '');
+						var highlightEls = quickSearchResults.find(
+							'.quick-search-results .quick-search-title, .quick-search-results .snippet'
+						);
+						search.highlightMatches(options.searchOptions.term, highlightEls);
+						$(window).trigger('action:search.quick.complete', {
+							data: data,
+							options: options,
+						});
+					});
+				});
+			});
+		}
+
+		quickSearchResults.find('.filter-category input[type="checkbox"]').on('change', function () {
+			inputEl.focus();
+			doSearch();
+		});
+
 		inputEl.off('keyup').on('keyup', function () {
 			if (searchTimeoutId) {
 				clearTimeout(searchTimeoutId);
 				searchTimeoutId = 0;
 			}
-			if (inputEl.val().length < 3 || inputEl.val() === currentVal) {
-				return;
-			}
-			currentVal = inputEl.val();
 			searchTimeoutId = setTimeout(function () {
+				if (inputEl.val().length < 3) {
+					quickSearchResults.addClass('hidden');
+					oldValue = inputEl.val();
+					return;
+				}
+				if (inputEl.val() === oldValue) {
+					return;
+				}
+				oldValue = inputEl.val();
 				if (!inputEl.is(':focus')) {
 					return quickSearchResults.addClass('hidden');
 				}
-				require(['search'], function (search) {
-					var data = {
-						term: inputEl.val(),
-						in: 'titles',
-						searchOnly: 1,
-					};
-					$(window).trigger('action:search.quick', { data: data });
-					search.api(data, function (data) {
-						data.posts.forEach(function (p) {
-							p.snippet = utils.escapeHTML($('<div>' + p.content + '</div>').text().slice(0, 80) + '...');
-						});
-						app.parseAndTranslate(template, data, function (html) {
-							if (html.length) {
-								html.find('.timeago').timeago();
-								quickSearchResults.html(html).removeClass('hidden').show();
-							} else {
-								quickSearchResults.html('').addClass('hidden');
-							}
-						});
-					});
-				});
+				doSearch();
 			}, 250);
+		});
+
+		inputEl.on('blur', function () {
+			setTimeout(function () {
+				if (!inputEl.is(':focus')) {
+					quickSearchResults.addClass('hidden');
+				}
+			}, 200);
+		});
+
+		inputEl.on('focus', function () {
+			oldValue = inputEl.val();
+			if (inputEl.val() && quickSearchResults.find('#quick-search-results').children().length) {
+				updateCategoryFilterName();
+				quickSearchResults.removeClass('hidden');
+				inputEl[0].setSelectionRange(0, inputEl.val().length);
+			}
+		});
+
+		inputEl.off('refresh').on('refresh', function () {
+			doSearch();
 		});
 	};
 
-	app.handleSearch = function () {
+	app.handleSearch = function (searchOptions) {
+		searchOptions = searchOptions || { in: 'titles' };
 		var searchButton = $('#search-button');
 		var searchFields = $('#search-fields');
 		var searchInput = $('#search-fields input');
-		var quickSearchResults = $('#quick-search-results');
+		var quickSearchContainer = $('#quick-search-container');
 
 		$('#search-form .advanced-search-link').off('mousedown').on('mousedown', function () {
 			ajaxify.go('/search');
@@ -627,22 +579,24 @@ app.cacheBuster = null;
 			searchInput.blur();
 		});
 		searchInput.off('blur').on('blur', dismissSearch);
-		searchInput.off('focus').on('focus', function () {
-			if (searchInput.val() && quickSearchResults.children().length) {
-				quickSearchResults.removeClass('hidden').show();
-			}
-		});
+		searchInput.off('focus');
+
+		var searchElements = {
+			inputEl: searchInput,
+			resultEl: quickSearchContainer,
+		};
 
 		app.enableTopicSearch({
-			inputEl: searchInput,
-			resultEl: quickSearchResults,
+			searchOptions: searchOptions,
+			searchElements: searchElements,
 		});
 
 		function dismissSearch() {
-			searchFields.addClass('hidden');
-			searchButton.removeClass('hidden');
 			setTimeout(function () {
-				quickSearchResults.addClass('hidden');
+				if (!searchInput.is(':focus')) {
+					searchFields.addClass('hidden');
+					searchButton.removeClass('hidden');
+				}
 			}, 200);
 		}
 
@@ -666,7 +620,10 @@ app.cacheBuster = null;
 			require(['search'], function (search) {
 				var data = search.getSearchPreferences();
 				data.term = input.val();
-				$(window).trigger('action:search.submit', { data: data });
+				$(window).trigger('action:search.submit', {
+					searchOptions: data,
+					searchElements: searchElements,
+				});
 				search.query(data, function () {
 					input.val('');
 				});
@@ -726,12 +683,15 @@ app.cacheBuster = null;
 		if (typeof $().autocomplete === 'function') {
 			return callback();
 		}
-
-		var scriptEl = document.createElement('script');
-		scriptEl.type = 'text/javascript';
-		scriptEl.src = config.relative_path + '/assets/vendor/jquery/js/jquery-ui.js?' + config['cache-buster'];
-		scriptEl.onload = callback;
-		document.head.appendChild(scriptEl);
+		require([
+			'jquery-ui/widgets/datepicker',
+			'jquery-ui/widgets/autocomplete',
+			'jquery-ui/widgets/sortable',
+			'jquery-ui/widgets/resizable',
+			'jquery-ui/widgets/draggable',
+		], function () {
+			callback();
+		});
 	};
 
 	app.showEmailConfirmWarning = function (err) {
@@ -793,14 +753,6 @@ app.cacheBuster = null;
 		});
 	};
 
-	app.loadProgressiveStylesheet = function () {
-		var linkEl = document.createElement('link');
-		linkEl.rel = 'stylesheet';
-		linkEl.href = config.relative_path + '/assets/js-enabled.css?' + app.cacheBuster;
-
-		document.head.appendChild(linkEl);
-	};
-
 	app.showCookieWarning = function () {
 		require(['translator', 'storage'], function (translator, storage) {
 			if (!config.cookies.enabled || !navigator.cookieEnabled) {
@@ -834,104 +786,14 @@ app.cacheBuster = null;
 		});
 	};
 
-	app.reskin = function (skinName) {
-		var clientEl = Array.prototype.filter.call(document.querySelectorAll('link[rel="stylesheet"]'), function (el) {
-			return el.href.indexOf(config.relative_path + '/assets/client') !== -1;
-		})[0] || null;
-		if (!clientEl) {
-			return;
+	function registerServiceWorker() {
+		if ('serviceWorker' in navigator) {
+			navigator.serviceWorker.register('/service-worker.js')
+				.then(function () {
+					console.info('ServiceWorker registration succeeded.');
+				}).catch(function (err) {
+					console.info('ServiceWorker registration failed: ', err);
+				});
 		}
-
-		var currentSkinClassName = $('body').attr('class').split(/\s+/).filter(function (className) {
-			return className.startsWith('skin-');
-		});
-		if (!currentSkinClassName[0]) {
-			return;
-		}
-		var currentSkin = currentSkinClassName[0].slice(5);
-		currentSkin = currentSkin !== 'noskin' ? currentSkin : '';
-
-		// Stop execution if skin didn't change
-		if (skinName === currentSkin) {
-			return;
-		}
-
-		var linkEl = document.createElement('link');
-		linkEl.rel = 'stylesheet';
-		linkEl.type = 'text/css';
-		linkEl.href = config.relative_path + '/assets/client' + (skinName ? '-' + skinName : '') + '.css';
-		linkEl.onload = function () {
-			clientEl.parentNode.removeChild(clientEl);
-
-			// Update body class with proper skin name
-			$('body').removeClass(currentSkinClassName.join(' '));
-			$('body').addClass('skin-' + (skinName || 'noskin'));
-		};
-
-		document.head.appendChild(linkEl);
-	};
-
-	app.updateTags = function () {
-		var metaWhitelist = ['title', 'description', /og:.+/, /article:.+/].map(function (val) {
-			return new RegExp(val);
-		});
-		var linkWhitelist = ['canonical', 'alternate', 'up'];
-
-		// Delete the old meta tags
-		Array.prototype.slice
-			.call(document.querySelectorAll('head meta'))
-			.filter(function (el) {
-				var name = el.getAttribute('property') || el.getAttribute('name');
-				return metaWhitelist.some(function (exp) {
-					return !!exp.test(name);
-				});
-			})
-			.forEach(function (el) {
-				document.head.removeChild(el);
-			});
-
-		// Add new meta tags
-		ajaxify.data._header.tags.meta
-			.filter(function (tagObj) {
-				var name = tagObj.name || tagObj.property;
-				return metaWhitelist.some(function (exp) {
-					return !!exp.test(name);
-				});
-			})
-			.forEach(function (tagObj) {
-				var metaEl = document.createElement('meta');
-				Object.keys(tagObj).forEach(function (prop) {
-					metaEl.setAttribute(prop, tagObj[prop]);
-				});
-				document.head.appendChild(metaEl);
-			});
-
-		// Delete the old link tags
-		Array.prototype.slice
-			.call(document.querySelectorAll('head link'))
-			.filter(function (el) {
-				var name = el.getAttribute('rel');
-				return linkWhitelist.some(function (item) {
-					return item === name;
-				});
-			})
-			.forEach(function (el) {
-				document.head.removeChild(el);
-			});
-
-		// Add new link tags
-		ajaxify.data._header.tags.link
-			.filter(function (tagObj) {
-				return linkWhitelist.some(function (item) {
-					return item === tagObj.rel;
-				});
-			})
-			.forEach(function (tagObj) {
-				var linkEl = document.createElement('link');
-				Object.keys(tagObj).forEach(function (prop) {
-					linkEl.setAttribute(prop, tagObj[prop]);
-				});
-				document.head.appendChild(linkEl);
-			});
-	};
+	}
 }());

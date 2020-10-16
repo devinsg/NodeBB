@@ -1,6 +1,7 @@
 {
     "chat.chatting_with": "Chat with",
     "chat.placeholder": "Kirjoita viestisi tähän ja paina enter lähettääksesi",
+    "chat.scroll-up-alert": "You are looking at older messages, click here to go to most recent message.",
     "chat.send": "Lähetä",
     "chat.no_active": "Sinulla ei ole aktiivisia keskusteluita.",
     "chat.user_typing": "%1 kirjoittaa ...",
@@ -58,6 +59,7 @@
     "composer.upload-file": "Upload File",
     "composer.zen_mode": "Zen Mode",
     "composer.select_category": "Select a category",
+    "composer.textarea.placeholder": "Enter your post content here, drag and drop images",
     "bootbox.ok": "OK",
     "bootbox.cancel": "Cancel",
     "bootbox.confirm": "Confirm",

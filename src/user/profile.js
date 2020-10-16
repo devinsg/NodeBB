@@ -5,6 +5,7 @@ const async = require('async');
 const validator = require('validator');
 
 const utils = require('../utils');
+const slugify = require('../slugify');
 const meta = require('../meta');
 const db = require('../database');
 const groups = require('../groups');
@@ -21,7 +22,11 @@ module.exports = function (User) {
 		}
 		const updateUid = data.uid;
 
-		const result = await plugins.fireHook('filter:user.updateProfile', { uid: uid, data: data, fields: fields });
+		const result = await plugins.fireHook('filter:user.updateProfile', {
+			uid: uid,
+			data: data,
+			fields: fields,
+		});
 		fields = result.fields;
 		data = result.data;
 
@@ -46,8 +51,18 @@ module.exports = function (User) {
 
 			await User.setUserField(updateUid, field, data[field]);
 		});
-		plugins.fireHook('action:user.updateProfile', { uid: uid, data: data, fields: fields, oldData: oldData });
-		return await User.getUserFields(updateUid, ['email', 'username', 'userslug', 'picture', 'icon:text', 'icon:bgColor']);
+
+		plugins.fireHook('action:user.updateProfile', {
+			uid: uid,
+			data: data,
+			fields: fields,
+			oldData: oldData,
+		});
+
+		return await User.getUserFields(updateUid, [
+			'email', 'username', 'userslug',
+			'picture', 'icon:text', 'icon:bgColor',
+		]);
 	};
 
 	async function validateData(callerUid, data) {
@@ -67,6 +82,7 @@ module.exports = function (User) {
 			return;
 		}
 
+		data.email = data.email.trim();
 		if (!utils.isEmailValid(data.email)) {
 			throw new Error('[[error:invalid-email]]');
 		}
@@ -86,7 +102,9 @@ module.exports = function (User) {
 		}
 		data.username = data.username.trim();
 		const userData = await User.getUserFields(uid, ['username', 'userslug']);
-		var userslug = utils.slugify(data.username);
+		if (userData.username === data.username) {
+			return;
+		}
 
 		if (data.username.length < meta.config.minimumUsernameLength) {
 			throw new Error('[[error:username-too-short]]');
@@ -96,6 +114,7 @@ module.exports = function (User) {
 			throw new Error('[[error:username-too-long]]');
 		}
 
+		const userslug = slugify(data.username);
 		if (!utils.isUserNameValid(data.username) || !userslug) {
 			throw new Error('[[error:invalid-username]]');
 		}
@@ -215,9 +234,10 @@ module.exports = function (User) {
 				['email:uid', uid, newEmail.toLowerCase()],
 				['email:sorted', 0, newEmail.toLowerCase() + ':' + uid],
 				['user:' + uid + ':emails', Date.now(), newEmail + ':' + Date.now()],
-				['users:notvalidated', Date.now(), uid],
 			]),
 			User.setUserFields(uid, { email: newEmail, 'email:confirmed': 0 }),
+			groups.leave('verified-users', uid),
+			groups.join('unverified-users', uid),
 			User.reset.cleanByUid(uid),
 		]);
 
@@ -238,7 +258,7 @@ module.exports = function (User) {
 		if (userData.username === newUsername) {
 			return;
 		}
-		const newUserslug = utils.slugify(newUsername);
+		const newUserslug = slugify(newUsername);
 		const now = Date.now();
 		await Promise.all([
 			updateUidMapping('username', uid, newUsername, userData.username),
@@ -263,6 +283,14 @@ module.exports = function (User) {
 	async function updateFullname(uid, newFullname) {
 		const fullname = await User.getUserField(uid, 'fullname');
 		await updateUidMapping('fullname', uid, newFullname, fullname);
+		if (newFullname !== fullname) {
+			if (fullname) {
+				await db.sortedSetRemove('fullname:sorted', fullname.toLowerCase() + ':' + uid);
+			}
+			if (newFullname) {
+				await db.sortedSetAdd('fullname:sorted', 0, newFullname.toLowerCase() + ':' + uid);
+			}
+		}
 	}
 
 	User.changePassword = async function (uid, data) {
@@ -278,19 +306,18 @@ module.exports = function (User) {
 		if (meta.config['password:disableEdit'] && !isAdmin) {
 			throw new Error('[[error:no-privileges]]');
 		}
-		let isAdminOrPasswordMatch = false;
+
 		const isSelf = parseInt(uid, 10) === parseInt(data.uid, 10);
-		if (
-			(isAdmin && !isSelf) || // Admins ok
-			(!hasPassword && isSelf)	// Initial password set ok
-		) {
-			isAdminOrPasswordMatch = true;
-		} else {
-			isAdminOrPasswordMatch = await User.isPasswordCorrect(uid, data.currentPassword, data.ip);
+
+		if (!isAdmin && !isSelf) {
+			throw new Error('[[user:change_password_error_privileges]]');
 		}
 
-		if (!isAdminOrPasswordMatch) {
-			throw new Error('[[user:change_password_error_wrong_current]]');
+		if (isSelf && hasPassword) {
+			const correct = await User.isPasswordCorrect(data.uid, data.currentPassword, data.ip);
+			if (!correct) {
+				throw new Error('[[user:change_password_error_wrong_current]]');
+			}
 		}
 
 		const hashedPassword = await User.hashPassword(data.newPassword);
@@ -299,6 +326,7 @@ module.exports = function (User) {
 				password: hashedPassword,
 				rss_token: utils.generateUUID(),
 			}),
+			User.reset.cleanByUid(data.uid),
 			User.reset.updateExpiry(data.uid),
 			User.auth.revokeAllSessions(data.uid),
 		]);

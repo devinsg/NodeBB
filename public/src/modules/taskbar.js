@@ -22,7 +22,6 @@ define('taskbar', ['benchpress', 'translator'], function (Benchpress, translator
 						minimizeAll();
 						module.load(uuid);
 						taskbar.toggleNew(uuid, false);
-						app.alternatingTitle('');
 
 						taskbar.tasklist.removeClass('active');
 						$btn.addClass('active');
@@ -183,18 +182,18 @@ define('taskbar', ['benchpress', 'translator'], function (Benchpress, translator
 
 	var processUpdate = function (element, key, value) {
 		switch (key) {
-		case 'title':
-			element.find('[component="taskbar/title"]').text(value);
-			break;
-		case 'icon':
-			element.find('i').attr('class', 'fa fa-' + value);
-			break;
-		case 'image':
-			element.find('a').css('background-image', 'url("' + value + '")');
-			break;
-		case 'background-color':
-			element.find('a').css('background-color', value);
-			break;
+			case 'title':
+				element.find('[component="taskbar/title"]').text(value);
+				break;
+			case 'icon':
+				element.find('i').attr('class', 'fa fa-' + value);
+				break;
+			case 'image':
+				element.find('a').css('background-image', 'url("' + value + '")');
+				break;
+			case 'background-color':
+				element.find('a').css('background-color', value);
+				break;
 		}
 	};
 
@@ -211,11 +210,6 @@ define('taskbar', ['benchpress', 'translator'], function (Benchpress, translator
 		});
 
 		element.data(data);
-	};
-
-	taskbar.updateTitle = function (module, uuid, newTitle) {
-		console.warn('[taskbar] .updateTitle() is deprecated, use .update() instead');
-		taskbar.tasklist.find('[data-module="' + module + '"][data-uuid="' + uuid + '"] [component="taskbar/title"]').text(newTitle);
 	};
 
 	return taskbar;

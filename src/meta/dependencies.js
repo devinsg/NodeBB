@@ -2,14 +2,13 @@
 
 const path = require('path');
 const fs = require('fs');
-const util = require('util');
-const readFileAsync = util.promisify(fs.readFile);
 
 const semver = require('semver');
 const winston = require('winston');
 require('colors');
 
 const pkg = require('../../package.json');
+const { paths, pluginNamePattern } = require('../constants');
 
 const Dependencies = module.exports;
 
@@ -30,11 +29,9 @@ Dependencies.check = async function () {
 	}
 };
 
-const pluginNamePattern = /^(@.*?\/)?nodebb-(theme|plugin|widget|rewards)-.*$/;
-
 Dependencies.checkModule = async function (moduleName) {
 	try {
-		let pkgData = await readFileAsync(path.join(__dirname, '../../node_modules/', moduleName, 'package.json'), 'utf8');
+		let pkgData = await fs.promises.readFile(path.join(paths.nodeModules, moduleName, 'package.json'), 'utf8');
 		pkgData = Dependencies.parseModuleData(moduleName, pkgData);
 
 		const satisfies = Dependencies.doesSatisfy(pkgData, pkg.dependencies[moduleName]);

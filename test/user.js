@@ -100,6 +100,48 @@ describe('User', function () {
 				done();
 			});
 		});
+
+		it('should error if username is already taken or rename user', async function () {
+			let err;
+			async function tryCreate(data) {
+				try {
+					return await User.create(data);
+				} catch (_err) {
+					err = _err;
+				}
+			}
+
+			const [uid1, uid2] = await Promise.all([
+				tryCreate({ username: 'dupe1' }),
+				tryCreate({ username: 'dupe1' }),
+			]);
+			if (err) {
+				assert.strictEqual(err.message, '[[error:username-taken]]');
+			} else {
+				const userData = await User.getUsersFields([uid1, uid2], ['username']);
+				const userNames = userData.map(u => u.username);
+				// make sure only 1 dupe1 is created
+				assert.equal(userNames.filter(username => username === 'dupe1').length, 1);
+				assert.equal(userNames.filter(username => username === 'dupe1 0').length, 1);
+			}
+		});
+
+		it('should error if email is already taken', async function () {
+			let err;
+			async function tryCreate(data) {
+				try {
+					return await User.create(data);
+				} catch (_err) {
+					err = _err;
+				}
+			}
+
+			await Promise.all([
+				tryCreate({ username: 'notdupe1', email: 'dupe@dupe.com' }),
+				tryCreate({ username: 'notdupe2', email: 'dupe@dupe.com' }),
+			]);
+			assert.strictEqual(err.message, '[[error:email-taken]]');
+		});
 	});
 
 	describe('.uniqueUsername()', function () {
@@ -280,7 +322,13 @@ describe('User', function () {
 	});
 
 	describe('.search()', function () {
-		var uid;
+		let adminUid;
+		let uid;
+		before(async () => {
+			adminUid = await User.create({ username: 'noteadmin' });
+			await groups.join('administrators', adminUid);
+		});
+
 		it('should return an object containing an array of matching users', function (done) {
 			User.search({ query: 'john' }, function (err, searchData) {
 				assert.ifError(err);
@@ -313,28 +361,58 @@ describe('User', function () {
 			});
 		});
 
-		it('should search users by ip', function (done) {
-			User.create({ username: 'ipsearch' }, function (err, uid) {
-				assert.ifError(err);
-				db.sortedSetAdd('ip:1.1.1.1:uid', [1, 1], [testUid, uid], function (err) {
-					assert.ifError(err);
-					socketUser.search({ uid: testUid }, { query: '1.1.1.1', searchBy: 'ip' }, function (err, data) {
-						assert.ifError(err);
-						assert(Array.isArray(data.users));
-						assert.equal(data.users.length, 2);
-						done();
-					});
-				});
+		it('should error for unprivileged user', function (done) {
+			socketUser.search({ uid: testUid }, { searchBy: 'ip', query: '123' }, function (err) {
+				assert.equal(err.message, '[[error:no-privileges]]');
+				done();
 			});
 		});
 
-		it('should search users by ip', function (done) {
+		it('should error for unprivileged user', function (done) {
+			socketUser.search({ uid: testUid }, { filters: ['banned'], query: '123' }, function (err) {
+				assert.equal(err.message, '[[error:no-privileges]]');
+				done();
+			});
+		});
+
+		it('should error for unprivileged user', function (done) {
+			socketUser.search({ uid: testUid }, { filters: ['flagged'], query: '123' }, function (err) {
+				assert.equal(err.message, '[[error:no-privileges]]');
+				done();
+			});
+		});
+
+		it('should search users by ip', async function () {
+			const uid = await User.create({ username: 'ipsearch' });
+			await db.sortedSetAdd('ip:1.1.1.1:uid', [1, 1], [testUid, uid]);
+			const data = await socketUser.search({ uid: adminUid }, { query: '1.1.1.1', searchBy: 'ip' });
+			assert(Array.isArray(data.users));
+			assert.equal(data.users.length, 2);
+		});
+
+		it('should search users by uid', function (done) {
 			socketUser.search({ uid: testUid }, { query: uid, searchBy: 'uid' }, function (err, data) {
 				assert.ifError(err);
 				assert(Array.isArray(data.users));
 				assert.equal(data.users[0].uid, uid);
 				done();
 			});
+		});
+
+		it('should search users by fullname', async function () {
+			const uid = await User.create({ username: 'fullnamesearch1', fullname: 'Mr. Fullname' });
+			const data = await socketUser.search({ uid: adminUid }, { query: 'mr', searchBy: 'fullname' });
+			assert(Array.isArray(data.users));
+			assert.equal(data.users.length, 1);
+			assert.equal(uid, data.users[0].uid);
+		});
+
+		it('should search users by fullname', async function () {
+			const uid = await User.create({ username: 'fullnamesearch2', fullname: 'Baris:Usakli' });
+			const data = await socketUser.search({ uid: adminUid }, { query: 'baris:', searchBy: 'fullname' });
+			assert(Array.isArray(data.users));
+			assert.equal(data.users.length, 1);
+			assert.equal(uid, data.users[0].uid);
 		});
 
 		it('should return empty array if query is empty', function (done) {
@@ -350,11 +428,9 @@ describe('User', function () {
 				assert.ifError(err);
 				User.setUserFields(uid, { banned: 1, flags: 10 }, function (err) {
 					assert.ifError(err);
-					socketUser.search({ uid: testUid }, {
+					socketUser.search({ uid: adminUid }, {
 						query: 'ipsearch',
-						onlineOnly: true,
-						bannedOnly: true,
-						flaggedOnly: true,
+						filters: ['online', 'banned', 'flagged'],
 					}, function (err, data) {
 						assert.ifError(err);
 						assert.equal(data.users[0].username, 'ipsearch_filter');
@@ -679,7 +755,7 @@ describe('User', function () {
 
 	describe('not logged in', function () {
 		it('should return error if not logged in', function (done) {
-			socketUser.updateProfile({ uid: 0 }, {}, function (err) {
+			socketUser.updateProfile({ uid: 0 }, { uid: 1 }, function (err) {
 				assert.equal(err.message, '[[error:invalid-uid]]');
 				done();
 			});
@@ -729,8 +805,9 @@ describe('User', function () {
 					groupTitle: 'testGroup',
 					birthday: '01/01/1980',
 					signature: 'nodebb is good',
+					password: '123456',
 				};
-				socketUser.updateProfile({ uid: uid }, data, function (err, result) {
+				socketUser.updateProfile({ uid: uid }, { ...data, password: '123456' }, function (err, result) {
 					assert.ifError(err);
 
 					assert.equal(result.username, 'updatedUserName');
@@ -740,7 +817,11 @@ describe('User', function () {
 					db.getObject('user:' + uid, function (err, userData) {
 						assert.ifError(err);
 						Object.keys(data).forEach(function (key) {
-							assert.equal(data[key], userData[key]);
+							if (key !== 'password') {
+								assert.equal(data[key], userData[key]);
+							} else {
+								assert(userData[key].startsWith('$2a$'));
+							}
 						});
 						done();
 					});
@@ -762,6 +843,55 @@ describe('User', function () {
 			});
 		});
 
+		it('should not let user change another user\'s password', async function () {
+			const regularUserUid = await User.create({ username: 'regularuserpwdchange', password: 'regularuser1234' });
+			const uid = await User.create({ username: 'changeadminpwd1', password: '123456' });
+			let err;
+			try {
+				await socketUser.changePassword({ uid: uid }, { uid: regularUserUid, newPassword: '654321', currentPassword: '123456' });
+			} catch (_err) {
+				err = _err;
+			}
+			assert.equal(err.message, '[[user:change_password_error_privileges]]');
+		});
+
+		it('should not let user change admin\'s password', async function () {
+			const adminUid = await User.create({ username: 'adminpwdchange', password: 'admin1234' });
+			await groups.join('administrators', adminUid);
+			const uid = await User.create({ username: 'changeadminpwd2', password: '123456' });
+
+			let err;
+			try {
+				await socketUser.changePassword({ uid: uid }, { uid: adminUid, newPassword: '654321', currentPassword: '123456' });
+			} catch (_err) {
+				err = _err;
+			}
+			assert.equal(err.message, '[[user:change_password_error_privileges]]');
+		});
+
+		it('should let admin change another users password', async function () {
+			const adminUid = await User.create({ username: 'adminpwdchange2', password: 'admin1234' });
+			await groups.join('administrators', adminUid);
+			const uid = await User.create({ username: 'forgotmypassword', password: '123456' });
+
+			await socketUser.changePassword({ uid: adminUid }, { uid: uid, newPassword: '654321' });
+			const correct = await User.isPasswordCorrect(uid, '654321', '127.0.0.1');
+			assert(correct);
+		});
+
+		it('should not let admin change their password if current password is incorrect', async function () {
+			const adminUid = await User.create({ username: 'adminforgotpwd', password: 'admin1234' });
+			await groups.join('administrators', adminUid);
+
+			let err;
+			try {
+				await socketUser.changePassword({ uid: adminUid }, { uid: adminUid, newPassword: '654321', currentPassword: 'wrongpwd' });
+			} catch (_err) {
+				err = _err;
+			}
+			assert.equal(err.message, '[[user:change_password_error_wrong_current]]');
+		});
+
 		it('should change username', function (done) {
 			socketUser.changeUsernameEmail({ uid: uid }, { uid: uid, username: 'updatedAgain', password: '123456' }, function (err) {
 				assert.ifError(err);
@@ -771,6 +901,22 @@ describe('User', function () {
 					done();
 				});
 			});
+		});
+
+		it('should not let setting an empty username', async function () {
+			await socketUser.changeUsernameEmail({ uid: uid }, { uid: uid, username: '', password: '123456' });
+			const username = await db.getObjectField('user:' + uid, 'username');
+			assert.strictEqual(username, 'updatedAgain');
+		});
+
+		it('should let updating profile if current username is above max length and it is not being changed', async function () {
+			const maxLength = meta.config.maximumUsernameLength + 1;
+			const longName = new Array(maxLength).fill('a').join('');
+			const uid = await User.create({ username: longName });
+			await socketUser.changeUsernameEmail({ uid: uid }, { uid: uid, username: longName, email: 'verylong@name.com' });
+			const userData = await db.getObject('user:' + uid);
+			assert.strictEqual(userData.username, longName);
+			assert.strictEqual(userData.email, 'verylong@name.com');
 		});
 
 		it('should not update a user\'s username if it did not change', function (done) {
@@ -785,6 +931,18 @@ describe('User', function () {
 			});
 		});
 
+		it('should not update a user\'s username if a password is not supplied', async () => {
+			let _err;
+			try {
+				await socketUser.updateProfile({ uid: uid }, { uid: uid, username: 'updatedAgain', password: '' });
+			} catch (err) {
+				_err = err;
+			}
+
+			assert(_err);
+			assert.strictEqual(_err.message, '[[error:invalid-password]]');
+		});
+
 		it('should change email', function (done) {
 			User.create({ username: 'pooremailupdate', email: 'poor@update.me', password: '123456' }, function (err, uid) {
 				assert.ifError(err);
@@ -797,6 +955,27 @@ describe('User', function () {
 					});
 				});
 			});
+		});
+
+		it('should error if email is identical', async function () {
+			await User.create({
+				username: 'trimtest1',
+				email: 'trim1@trim.com',
+			});
+			const uid2 = await User.create({
+				username: 'trimtest2',
+				email: 'trim2@trim.com',
+			});
+			let err;
+			try {
+				await socketUser.changeUsernameEmail({ uid: uid2 }, {
+					uid: uid2,
+					email: '  trim1@trim.com',
+				});
+			} catch (_err) {
+				err = _err;
+			}
+			assert.strictEqual(err.message, '[[error:email-taken]]');
 		});
 
 		it('should update cover image', function (done) {
@@ -902,31 +1081,6 @@ describe('User', function () {
 			});
 		});
 
-		it('should upload profile picture', function (done) {
-			helpers.copyFile(
-				path.join(nconf.get('base_dir'), 'test/files/test.png'),
-				path.join(nconf.get('base_dir'), 'test/files/test_copy.png'),
-				function (err) {
-					assert.ifError(err);
-					var picture = {
-						path: path.join(nconf.get('base_dir'), 'test/files/test_copy.png'),
-						size: 7189,
-						name: 'test_copy.png',
-						type: 'image/png',
-					};
-					User.uploadCroppedPicture({
-						uid: uid,
-						file: picture,
-					}, function (err, uploadedPicture) {
-						assert.ifError(err);
-						assert.equal(uploadedPicture.url, '/assets/uploads/profile/' + uid + '-profileavatar.png');
-						assert.equal(uploadedPicture.path, path.join(nconf.get('upload_path'), 'profile', uid + '-profileavatar.png'));
-						done();
-					});
-				}
-			);
-		});
-
 		it('should return error if profile image uploads disabled', function (done) {
 			meta.config.allowProfileImageUploads = 0;
 			var picture = {
@@ -940,37 +1094,15 @@ describe('User', function () {
 				file: picture,
 			}, function (err) {
 				assert.equal(err.message, '[[error:profile-image-uploads-disabled]]');
-				done();
-			});
-		});
-
-		it('should return error if profile image is too big', function (done) {
-			meta.config.allowProfileImageUploads = 1;
-			var picture = {
-				path: path.join(nconf.get('base_dir'), 'test/files/test_copy.png'),
-				size: 265000,
-				name: 'test.png',
-				type: 'image/png',
-			};
-
-			User.uploadCroppedPicture({
-				uid: uid,
-				file: picture,
-			}, function (err) {
-				assert.equal(err.message, '[[error:file-too-big, 256]]');
+				meta.config.allowProfileImageUploads = 1;
 				done();
 			});
 		});
 
 		it('should return error if profile image has no mime type', function (done) {
-			var picture = {
-				path: path.join(nconf.get('base_dir'), 'test/files/test_copy.png'),
-				size: 7189,
-				name: 'test',
-			};
 			User.uploadCroppedPicture({
 				uid: uid,
-				file: picture,
+				imageData: 'data:image/invalid;base64,R0lGODlhPQBEAPeoAJosM/',
 			}, function (err) {
 				assert.equal(err.message, '[[error:invalid-image]]');
 				done();
@@ -1137,17 +1269,12 @@ describe('User', function () {
 		});
 
 
-		it('should get history from set', function (done) {
-			var now = Date.now();
-			db.sortedSetAdd('user:' + testUid + ':usernames', now, 'derp:' + now, function (err) {
-				assert.ifError(err);
-				User.getHistory('user:' + testUid + ':usernames', function (err, data) {
-					assert.ifError(err);
-					assert.equal(data[0].value, 'derp');
-					assert.equal(data[0].timestamp, now);
-					done();
-				});
-			});
+		it('should get history from set', async function () {
+			const now = Date.now();
+			await db.sortedSetAdd('user:' + testUid + ':usernames', now, 'derp:' + now);
+			const data = await User.getHistory('user:' + testUid + ':usernames');
+			assert.equal(data[0].value, 'derp');
+			assert.equal(data[0].timestamp, now);
 		});
 
 		it('should return the correct ban reason', function (done) {
@@ -1582,9 +1709,6 @@ describe('User', function () {
 					restrictChat: 0,
 					followTopicsOnCreate: 1,
 					followTopicsOnReply: 1,
-					notificationSound: '',
-					incomingChatSound: '',
-					outgoingChatSound: '',
 				},
 			};
 			socketUser.saveSettings({ uid: testUid }, data, function (err) {
@@ -1596,6 +1720,37 @@ describe('User', function () {
 				});
 			});
 		});
+
+		it('should properly escape homePageRoute', function (done) {
+			var data = {
+				uid: testUid,
+				settings: {
+					bootswatchSkin: 'default',
+					homePageRoute: 'category/6/testing-ground',
+					homePageCustom: '',
+					openOutgoingLinksInNewTab: 0,
+					scrollToMyPost: 1,
+					userLang: 'en-GB',
+					usePagination: 1,
+					topicsPerPage: '10',
+					postsPerPage: '5',
+					showemail: 1,
+					showfullname: 1,
+					restrictChat: 0,
+					followTopicsOnCreate: 1,
+					followTopicsOnReply: 1,
+				},
+			};
+			socketUser.saveSettings({ uid: testUid }, data, function (err) {
+				assert.ifError(err);
+				User.getSettings(testUid, function (err, data) {
+					assert.ifError(err);
+					assert.strictEqual(data.homePageRoute, 'category/6/testing-ground');
+					done();
+				});
+			});
+		});
+
 
 		it('should error if language is invalid', function (done) {
 			var data = {
@@ -1743,6 +1898,23 @@ describe('User', function () {
 							done();
 						});
 					});
+				});
+			});
+		});
+
+		it('should trim username and add user to registration queue', function (done) {
+			helpers.registerUser({
+				username: 'invalidname\r\n',
+				password: '123456',
+				'password-confirm': '123456',
+				email: 'invalidtest@test.com',
+				gdpr_consent: true,
+			}, function (err) {
+				assert.ifError(err);
+				db.getSortedSetRange('registration:queue', 0, -1, function (err, data) {
+					assert.ifError(err);
+					assert.equal(data[0], 'invalidname');
+					done();
 				});
 			});
 		});
@@ -1916,34 +2088,23 @@ describe('User', function () {
 			});
 		});
 
-		it('should confirm email of user', function (done) {
-			var email = 'confirm@me.com';
-			User.create({
+		it('should confirm email of user', async function () {
+			const email = 'confirm@me.com';
+			const uid = await User.create({
 				username: 'confirme',
 				email: email,
-			}, function (err, uid) {
-				assert.ifError(err);
-				User.email.sendValidationEmail(uid, email, function (err, code) {
-					assert.ifError(err);
-					User.email.confirm(code, function (err) {
-						assert.ifError(err);
-
-						async.parallel({
-							confirmed: function (next) {
-								db.getObjectField('user:' + uid, 'email:confirmed', next);
-							},
-							isMember: function (next) {
-								db.isSortedSetMember('users:notvalidated', uid, next);
-							},
-						}, function (err, results) {
-							assert.ifError(err);
-							assert.equal(results.confirmed, 1);
-							assert.equal(results.isMember, false);
-							done();
-						});
-					});
-				});
 			});
+
+			const code = await User.email.sendValidationEmail(uid, email);
+			const unverified = await groups.isMember(uid, 'unverified-users');
+			assert.strictEqual(unverified, true);
+			await User.email.confirm(code);
+			const [confirmed, isVerified] = await Promise.all([
+				db.getObjectField('user:' + uid, 'email:confirmed'),
+				groups.isMember(uid, 'verified-users', uid),
+			]);
+			assert.strictEqual(parseInt(confirmed, 10), 1);
+			assert.strictEqual(isVerified, true);
 		});
 	});
 

@@ -88,8 +88,7 @@ async function isSystemGroupAllowedToPrivileges(privileges, uid, cid) {
 	return await groups.isMemberOfGroups(uidToSystemGroup[uid], groupKeys);
 }
 
-helpers.getUserPrivileges = async function (cid, hookName, userPrivilegeList) {
-	const userPrivileges = await plugins.fireHook(hookName, userPrivilegeList.slice());
+helpers.getUserPrivileges = async function (cid, userPrivileges) {
 	let memberSets = await groups.getMembersOfGroups(userPrivileges.map(privilege => 'cid:' + cid + ':privileges:' + privilege));
 	memberSets = memberSets.map(function (set) {
 		return set.map(uid => parseInt(uid, 10));
@@ -108,8 +107,7 @@ helpers.getUserPrivileges = async function (cid, hookName, userPrivilegeList) {
 	return memberData;
 };
 
-helpers.getGroupPrivileges = async function (cid, hookName, groupPrivilegeList) {
-	const groupPrivileges = await plugins.fireHook(hookName, groupPrivilegeList.slice());
+helpers.getGroupPrivileges = async function (cid, groupPrivileges) {
 	const [memberSets, allGroupNames] = await Promise.all([
 		groups.getMembersOfGroups(groupPrivileges.map(privilege => 'cid:' + cid + ':privileges:' + privilege)),
 		groups.getGroups('groups:createtime', 0, -1),
@@ -121,13 +119,15 @@ helpers.getGroupPrivileges = async function (cid, hookName, groupPrivilegeList) 
 
 	groupNames = groups.ephemeralGroups.concat(groupNames);
 	moveToFront(groupNames, 'Global Moderators');
+	moveToFront(groupNames, 'unverified-users');
+	moveToFront(groupNames, 'verified-users');
 	moveToFront(groupNames, 'registered-users');
 
 	const adminIndex = groupNames.indexOf('administrators');
 	if (adminIndex !== -1) {
 		groupNames.splice(adminIndex, 1);
 	}
-	const groupData = await groups.getGroupsFields(groupNames, ['private']);
+	const groupData = await groups.getGroupsFields(groupNames, ['private', 'system']);
 	const memberData = groupNames.map(function (member, index) {
 		const memberPrivs = {};
 
@@ -139,6 +139,7 @@ helpers.getGroupPrivileges = async function (cid, hookName, groupPrivilegeList) 
 			nameEscaped: translator.escape(validator.escape(member)),
 			privileges: memberPrivs,
 			isPrivate: groupData[index] && !!groupData[index].private,
+			isSystem: groupData[index] && !!groupData[index].system,
 		};
 	});
 	return memberData;
@@ -153,18 +154,18 @@ function moveToFront(groupNames, groupToMove) {
 	}
 }
 
-helpers.giveOrRescind = async function (method, privileges, cids, groupNames) {
-	groupNames = Array.isArray(groupNames) ? groupNames : [groupNames];
+helpers.giveOrRescind = async function (method, privileges, cids, members) {
+	members = Array.isArray(members) ? members : [members];
 	cids = Array.isArray(cids) ? cids : [cids];
-	for (const groupName of groupNames) {
+	for (const member of members) {
 		const groupKeys = [];
 		cids.forEach((cid) => {
 			privileges.forEach((privilege) => {
-				groupKeys.push('cid:' + cid + ':privileges:groups:' + privilege);
+				groupKeys.push('cid:' + cid + ':privileges:' + privilege);
 			});
 		});
 		/* eslint-disable no-await-in-loop */
-		await method(groupKeys, groupName);
+		await method(groupKeys, member);
 	}
 };
 

@@ -3,6 +3,7 @@
 const zxcvbn = require('zxcvbn');
 const db = require('../database');
 const utils = require('../utils');
+const slugify = require('../slugify');
 const plugins = require('../plugins');
 const groups = require('../groups');
 const meta = require('../meta');
@@ -10,13 +11,34 @@ const meta = require('../meta');
 module.exports = function (User) {
 	User.create = async function (data) {
 		data.username = data.username.trim();
-		data.userslug = utils.slugify(data.username);
+		data.userslug = slugify(data.username);
 		if (data.email !== undefined) {
 			data.email = String(data.email).trim();
 		}
-		const timestamp = data.timestamp || Date.now();
 
-		await User.isDataValid(data);
+		try {
+			await lock(data.username, '[[error:username-taken]]');
+			if (data.email) {
+				await lock(data.email, '[[error:email-taken]]');
+			}
+
+			await User.isDataValid(data);
+
+			return await create(data);
+		} finally {
+			await db.deleteObjectFields('locks', [data.username, data.email]);
+		}
+	};
+
+	async function lock(value, error) {
+		const count = await db.incrObjectField('locks', value);
+		if (count > 1) {
+			throw new Error(error);
+		}
+	}
+
+	async function create(data) {
+		const timestamp = data.timestamp || Date.now();
 
 		let userData = {
 			username: data.username,
@@ -42,7 +64,7 @@ module.exports = function (User) {
 		const userNameChanged = !!renamedUsername;
 		if (userNameChanged) {
 			userData.username = renamedUsername;
-			userData.userslug = utils.slugify(renamedUsername);
+			userData.userslug = slugify(renamedUsername);
 		}
 
 		const results = await plugins.fireHook('filter:user.create', { user: userData, data: data });
@@ -55,7 +77,7 @@ module.exports = function (User) {
 
 		const bulkAdd = [
 			['username:uid', userData.uid, userData.username],
-			['user:' + userData.uid + ':usernames', timestamp, userData.username],
+			['user:' + userData.uid + ':usernames', timestamp, userData.username + ':' + timestamp],
 			['username:sorted', 0, userData.username.toLowerCase() + ':' + userData.uid],
 			['userslug:uid', userData.uid, userData.userslug],
 			['users:joindate', timestamp, userData.uid],
@@ -64,19 +86,25 @@ module.exports = function (User) {
 			['users:reputation', 0, userData.uid],
 		];
 
-		if (parseInt(userData.uid, 10) !== 1) {
-			bulkAdd.push(['users:notvalidated', timestamp, userData.uid]);
-		}
 		if (userData.email) {
 			bulkAdd.push(['email:uid', userData.uid, userData.email.toLowerCase()]);
 			bulkAdd.push(['email:sorted', 0, userData.email.toLowerCase() + ':' + userData.uid]);
-			bulkAdd.push(['user:' + userData.uid + ':emails', timestamp, userData.email]);
+			bulkAdd.push(['user:' + userData.uid + ':emails', timestamp, userData.email + ':' + timestamp]);
 		}
+
+		if (userData.fullname) {
+			bulkAdd.push(['fullname:sorted', 0, userData.fullname.toLowerCase() + ':' + userData.uid]);
+		}
+
+		const groupsToJoin = ['registered-users'].concat(
+			parseInt(userData.uid, 10) !== 1 ?
+				'unverified-users' : 'verified-users'
+		);
 
 		await Promise.all([
 			db.incrObjectField('global', 'userCount'),
 			db.sortedSetAddBulk(bulkAdd),
-			groups.join('registered-users', userData.uid),
+			groups.join(groupsToJoin, userData.uid),
 			User.notifications.sendWelcomeNotification(userData.uid),
 			storePassword(userData.uid, data.password),
 			User.updateDigestSetting(userData.uid, meta.config.dailyDigestFreq),
@@ -92,7 +120,7 @@ module.exports = function (User) {
 		}
 		plugins.fireHook('action:user.create', { user: userData, data: data });
 		return userData.uid;
-	};
+	}
 
 	async function storePassword(uid, password) {
 		if (!password) {

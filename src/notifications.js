@@ -8,6 +8,7 @@ const _ = require('lodash');
 
 const db = require('./database');
 const User = require('./user');
+const posts = require('./posts');
 const groups = require('./groups');
 const meta = require('./meta');
 const batch = require('./batch');
@@ -172,14 +173,16 @@ async function pushToUids(uids, notification) {
 		if (['new-reply', 'new-chat'].includes(notification.type)) {
 			notification['cta-type'] = notification.type;
 		}
-
+		let body = notification.bodyLong || '';
+		body = posts.relativeToAbsolute(body, posts.urlRegex);
+		body = posts.relativeToAbsolute(body, posts.imgRegex);
 		await async.eachLimit(uids, 3, function (uid, next) {
 			emailer.send('notification', uid, {
 				path: notification.path,
 				notification_url: notification.path.startsWith('http') ? notification.path : nconf.get('url') + notification.path,
 				subject: utils.stripHTMLTags(notification.subject || '[[notifications:new_notification]]'),
 				intro: utils.stripHTMLTags(notification.bodyShort),
-				body: notification.bodyLong || '',
+				body: body,
 				notification: notification,
 				showUnsubscribe: true,
 			}, next);
@@ -326,7 +329,7 @@ Notifications.prune = async function () {
 		}, { batch: 500, interval: 100 });
 	} catch (err) {
 		if (err) {
-			winston.error('Encountered error pruning notifications', err);
+			winston.error('Encountered error pruning notifications', err.stack);
 		}
 	}
 };
@@ -373,30 +376,30 @@ Notifications.merge = async function (notifications) {
 			}
 
 			switch (mergeId) {
-			case 'notifications:upvoted_your_post_in':
-			case 'notifications:user_started_following_you':
-			case 'notifications:user_posted_to':
-			case 'notifications:user_flagged_post_in':
-			case 'notifications:user_flagged_user':
-				var usernames = _.uniq(set.map(notifObj => notifObj && notifObj.user && notifObj.user.username));
-				var numUsers = usernames.length;
+				case 'notifications:upvoted_your_post_in':
+				case 'notifications:user_started_following_you':
+				case 'notifications:user_posted_to':
+				case 'notifications:user_flagged_post_in':
+				case 'notifications:user_flagged_user':
+					var usernames = _.uniq(set.map(notifObj => notifObj && notifObj.user && notifObj.user.username));
+					var numUsers = usernames.length;
 
-				var title = utils.decodeHTMLEntities(notifications[modifyIndex].topicTitle || '');
-				var titleEscaped = title.replace(/%/g, '&#37;').replace(/,/g, '&#44;');
-				titleEscaped = titleEscaped ? (', ' + titleEscaped) : '';
+					var title = utils.decodeHTMLEntities(notifications[modifyIndex].topicTitle || '');
+					var titleEscaped = title.replace(/%/g, '&#37;').replace(/,/g, '&#44;');
+					titleEscaped = titleEscaped ? (', ' + titleEscaped) : '';
 
-				if (numUsers === 2) {
-					notifications[modifyIndex].bodyShort = '[[' + mergeId + '_dual, ' + usernames.join(', ') + titleEscaped + ']]';
-				} else if (numUsers > 2) {
-					notifications[modifyIndex].bodyShort = '[[' + mergeId + '_multiple, ' + usernames[0] + ', ' + (numUsers - 1) + titleEscaped + ']]';
-				}
+					if (numUsers === 2) {
+						notifications[modifyIndex].bodyShort = '[[' + mergeId + '_dual, ' + usernames.join(', ') + titleEscaped + ']]';
+					} else if (numUsers > 2) {
+						notifications[modifyIndex].bodyShort = '[[' + mergeId + '_multiple, ' + usernames[0] + ', ' + (numUsers - 1) + titleEscaped + ']]';
+					}
 
-				notifications[modifyIndex].path = set[set.length - 1].path;
-				break;
+					notifications[modifyIndex].path = set[set.length - 1].path;
+					break;
 
-			case 'new_register':
-				notifications[modifyIndex].bodyShort = '[[notifications:' + mergeId + '_multiple, ' + set.length + ']]';
-				break;
+				case 'new_register':
+					notifications[modifyIndex].bodyShort = '[[notifications:' + mergeId + '_multiple, ' + set.length + ']]';
+					break;
 			}
 
 			// Filter out duplicates
@@ -418,4 +421,4 @@ Notifications.merge = async function (notifications) {
 	return data && data.notifications;
 };
 
-Notifications.async = require('./promisify')(Notifications);
+require('./promisify')(Notifications);

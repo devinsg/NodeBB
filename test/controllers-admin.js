@@ -174,8 +174,8 @@ describe('Admin Controllers', function () {
 		});
 	});
 
-	it('should load /admin/general/homepage', function (done) {
-		request(nconf.get('url') + '/api/admin/general/homepage', { jar: jar, json: true }, function (err, res, body) {
+	it('should load /admin/settings/homepage', function (done) {
+		request(nconf.get('url') + '/api/admin/settings/homepage', { jar: jar, json: true }, function (err, res, body) {
 			assert.ifError(err);
 			assert.equal(res.statusCode, 200);
 			assert(body.routes);
@@ -212,78 +212,6 @@ describe('Admin Controllers', function () {
 
 	it('should load /admin/manage/users', function (done) {
 		request(nconf.get('url') + '/api/admin/manage/users', { jar: jar, json: true }, function (err, res, body) {
-			assert.ifError(err);
-			assert.equal(res.statusCode, 200);
-			assert(body);
-			done();
-		});
-	});
-
-	it('should load /admin/manage/users/search', function (done) {
-		request(nconf.get('url') + '/api/admin/manage/users/search', { jar: jar, json: true }, function (err, res, body) {
-			assert.ifError(err);
-			assert.equal(res.statusCode, 200);
-			assert(body.users);
-			done();
-		});
-	});
-
-	it('should load /admin/manage/users/not-validated', function (done) {
-		request(nconf.get('url') + '/api/admin/manage/users/not-validated', { jar: jar, json: true }, function (err, res, body) {
-			assert.ifError(err);
-			assert.equal(res.statusCode, 200);
-			assert(body);
-			done();
-		});
-	});
-
-	it('should load /admin/manage/users/no-posts', function (done) {
-		request(nconf.get('url') + '/api/admin/manage/users/no-posts', { jar: jar, json: true }, function (err, res, body) {
-			assert.ifError(err);
-			assert.equal(res.statusCode, 200);
-			assert(body);
-			done();
-		});
-	});
-
-	it('should load /admin/manage/users/top-posters', function (done) {
-		request(nconf.get('url') + '/api/admin/manage/users/top-posters', { jar: jar, json: true }, function (err, res, body) {
-			assert.ifError(err);
-			assert.equal(res.statusCode, 200);
-			assert(body);
-			done();
-		});
-	});
-
-	it('should load /admin/manage/users/most-reputation', function (done) {
-		request(nconf.get('url') + '/api/admin/manage/users/most-reputation', { jar: jar, json: true }, function (err, res, body) {
-			assert.ifError(err);
-			assert.equal(res.statusCode, 200);
-			assert(body);
-			done();
-		});
-	});
-
-	it('should load /admin/manage/users/inactive', function (done) {
-		request(nconf.get('url') + '/api/admin/manage/users/inactive', { jar: jar, json: true }, function (err, res, body) {
-			assert.ifError(err);
-			assert.equal(res.statusCode, 200);
-			assert(body);
-			done();
-		});
-	});
-
-	it('should load /admin/manage/users/flagged', function (done) {
-		request(nconf.get('url') + '/api/admin/manage/users/flagged', { jar: jar, json: true }, function (err, res, body) {
-			assert.ifError(err);
-			assert.equal(res.statusCode, 200);
-			assert(body);
-			done();
-		});
-	});
-
-	it('should load /admin/manage/users/banned', function (done) {
-		request(nconf.get('url') + '/api/admin/manage/users/banned', { jar: jar, json: true }, function (err, res, body) {
 			assert.ifError(err);
 			assert.equal(res.statusCode, 200);
 			assert(body);
@@ -364,6 +292,43 @@ describe('Admin Controllers', function () {
 		});
 	});
 
+	it('should return 403 if no referer', function (done) {
+		request(nconf.get('url') + '/api/admin/groups/administrators/csv', { jar: jar }, function (err, res, body) {
+			assert.ifError(err);
+			assert.equal(res.statusCode, 403);
+			assert.equal(body, '[[error:invalid-origin]]');
+			done();
+		});
+	});
+
+	it('should return 403 if referer is not /api/admin/groups/administrators/csv', function (done) {
+		request(nconf.get('url') + '/api/admin/groups/administrators/csv', {
+			jar: jar,
+			headers: {
+				referer: '/topic/1/test',
+			},
+		}, function (err, res, body) {
+			assert.ifError(err);
+			assert.equal(res.statusCode, 403);
+			assert.equal(body, '[[error:invalid-origin]]');
+			done();
+		});
+	});
+
+	it('should load /api/admin/groups/administrators/csv', function (done) {
+		request(nconf.get('url') + '/api/admin/groups/administrators/csv', {
+			jar: jar,
+			headers: {
+				referer: nconf.get('url') + '/admin/manage/groups',
+			},
+		}, function (err, res, body) {
+			assert.ifError(err);
+			assert.equal(res.statusCode, 200);
+			assert(body);
+			done();
+		});
+	});
+
 	it('should load /admin/advanced/hooks', function (done) {
 		request(nconf.get('url') + '/api/admin/advanced/hooks', { jar: jar, json: true }, function (err, res, body) {
 			assert.ifError(err);
@@ -392,11 +357,14 @@ describe('Admin Controllers', function () {
 	});
 
 	it('should load /admin/advanced/errors/export', function (done) {
-		request(nconf.get('url') + '/api/admin/advanced/errors/export', { jar: jar }, function (err, res, body) {
+		meta.errors.clear(function (err) {
 			assert.ifError(err);
-			assert.equal(res.statusCode, 200);
-			assert.strictEqual(body, '');
-			done();
+			request(nconf.get('url') + '/api/admin/advanced/errors/export', { jar: jar }, function (err, res, body) {
+				assert.ifError(err);
+				assert.equal(res.statusCode, 200);
+				assert.strictEqual(body, '');
+				done();
+			});
 		});
 	});
 
@@ -413,13 +381,13 @@ describe('Admin Controllers', function () {
 		});
 	});
 
-	it('should load /admin/general/navigation', function (done) {
+	it('should load /admin/settings/navigation', function (done) {
 		var navigation = require('../src/navigation/admin');
 		var data = require('../install/data/navigation.json');
 
 		navigation.save(data, function (err) {
 			assert.ifError(err);
-			request(nconf.get('url') + '/api/admin/general/navigation', { jar: jar, json: true }, function (err, res, body) {
+			request(nconf.get('url') + '/api/admin/settings/navigation', { jar: jar, json: true }, function (err, res, body) {
 				assert.ifError(err);
 				assert(body);
 				assert(body.available);
@@ -449,15 +417,6 @@ describe('Admin Controllers', function () {
 
 	it('should load /admin/advanced/events', function (done) {
 		request(nconf.get('url') + '/api/admin/advanced/events', { jar: jar, json: true }, function (err, res, body) {
-			assert.ifError(err);
-			assert.equal(res.statusCode, 200);
-			assert(body);
-			done();
-		});
-	});
-
-	it('should load /admin/general/sounds', function (done) {
-		request(nconf.get('url') + '/api/admin/general/sounds', { jar: jar, json: true }, function (err, res, body) {
 			assert.ifError(err);
 			assert.equal(res.statusCode, 200);
 			assert(body);
@@ -510,8 +469,8 @@ describe('Admin Controllers', function () {
 		});
 	});
 
-	it('should load /admin/general/languages', function (done) {
-		request(nconf.get('url') + '/api/admin/general/languages', { jar: jar, json: true }, function (err, res, body) {
+	it('should load /admin/settings/languages', function (done) {
+		request(nconf.get('url') + '/api/admin/settings/languages', { jar: jar, json: true }, function (err, res, body) {
 			assert.ifError(err);
 			assert.equal(res.statusCode, 200);
 			assert(body);
@@ -519,11 +478,11 @@ describe('Admin Controllers', function () {
 		});
 	});
 
-	it('should load /admin/general/social', function (done) {
+	it('should load /admin/settings/social', function (done) {
 		var socketAdmin = require('../src/socket.io/admin');
 		socketAdmin.social.savePostSharingNetworks({ uid: adminUid }, ['facebook', 'twitter'], function (err) {
 			assert.ifError(err);
-			request(nconf.get('url') + '/api/admin/general/social', { jar: jar, json: true }, function (err, res, body) {
+			request(nconf.get('url') + '/api/admin/settings/social', { jar: jar, json: true }, function (err, res, body) {
 				assert.ifError(err);
 				assert(body);
 				body = body.posts.map(function (network) {
@@ -545,15 +504,6 @@ describe('Admin Controllers', function () {
 		});
 	});
 
-	it('should load /admin/manage/post-queue', function (done) {
-		request(nconf.get('url') + '/api/admin/manage/post-queue', { jar: jar, json: true }, function (err, res, body) {
-			assert.ifError(err);
-			assert.equal(res.statusCode, 200);
-			assert(body);
-			done();
-		});
-	});
-
 	it('/post-queue should 404 for regular user', function (done) {
 		request(nconf.get('url') + '/api/post-queue', { json: true }, function (err, res, body) {
 			assert.ifError(err);
@@ -565,15 +515,6 @@ describe('Admin Controllers', function () {
 
 	it('should load /post-queue', function (done) {
 		request(nconf.get('url') + '/api/post-queue', { jar: jar, json: true }, function (err, res, body) {
-			assert.ifError(err);
-			assert.equal(res.statusCode, 200);
-			assert(body);
-			done();
-		});
-	});
-
-	it('should load /admin/manage/ip-blacklist', function (done) {
-		request(nconf.get('url') + '/api/admin/manage/ip-blacklist', { jar: jar, json: true }, function (err, res, body) {
 			assert.ifError(err);
 			assert.equal(res.statusCode, 200);
 			assert(body);
@@ -690,7 +631,9 @@ describe('Admin Controllers', function () {
 				request(nconf.get('url') + '/api/flags/' + flagId, { jar: moderatorJar, json: true }, function (err, res, body) {
 					assert.ifError(err);
 					assert(body);
-					assert.equal(body.reporter.username, 'regular');
+					assert(body.reports);
+					assert(Array.isArray(body.reports));
+					assert.equal(body.reports[0].reporter.username, 'regular');
 					done();
 				});
 			});

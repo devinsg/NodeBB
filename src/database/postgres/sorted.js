@@ -410,6 +410,9 @@ SELECT 1
 			return;
 		}
 
+		if (!values.length) {
+			return [];
+		}
 		values = values.map(helpers.valueToString);
 
 		const res = await module.pool.query({
@@ -453,6 +456,11 @@ SELECT o."_key" k
 		return keys.map(function (k) {
 			return res.rows.some(r => r.k === k);
 		});
+	};
+
+	module.getSortedSetMembers = async function (key) {
+		const data = await module.getSortedSetsMembers([key]);
+		return data && data[0];
 	};
 
 	module.getSortedSetsMembers = async function (keys) {
@@ -574,15 +582,15 @@ DELETE FROM "legacy_zset" z
 			if (min.match(/^\(/)) {
 				q.values.push(min.substr(1));
 				q.suffix += 'GT';
-				q.where += ` AND z."value" > $` + q.values.length + `::TEXT`;
+				q.where += ` AND z."value" > $` + q.values.length + `::TEXT COLLATE "C"`;
 			} else if (min.match(/^\[/)) {
 				q.values.push(min.substr(1));
 				q.suffix += 'GE';
-				q.where += ` AND z."value" >= $` + q.values.length + `::TEXT`;
+				q.where += ` AND z."value" >= $` + q.values.length + `::TEXT COLLATE "C"`;
 			} else {
 				q.values.push(min);
 				q.suffix += 'GE';
-				q.where += ` AND z."value" >= $` + q.values.length + `::TEXT`;
+				q.where += ` AND z."value" >= $` + q.values.length + `::TEXT COLLATE "C"`;
 			}
 		}
 
@@ -590,20 +598,49 @@ DELETE FROM "legacy_zset" z
 			if (max.match(/^\(/)) {
 				q.values.push(max.substr(1));
 				q.suffix += 'LT';
-				q.where += ` AND z."value" < $` + q.values.length + `::TEXT`;
+				q.where += ` AND z."value" < $` + q.values.length + `::TEXT COLLATE "C"`;
 			} else if (max.match(/^\[/)) {
 				q.values.push(max.substr(1));
 				q.suffix += 'LE';
-				q.where += ` AND z."value" <= $` + q.values.length + `::TEXT`;
+				q.where += ` AND z."value" <= $` + q.values.length + `::TEXT COLLATE "C"`;
 			} else {
 				q.values.push(max);
 				q.suffix += 'LE';
-				q.where += ` AND z."value" <= $` + q.values.length + `::TEXT`;
+				q.where += ` AND z."value" <= $` + q.values.length + `::TEXT COLLATE "C"`;
 			}
 		}
 
 		return q;
 	}
+
+	module.getSortedSetScan = async function (params) {
+		let match = params.match;
+		if (match.startsWith('*')) {
+			match = '%' + match.substring(1);
+		}
+
+		if (match.endsWith('*')) {
+			match = match.substring(0, match.length - 1) + '%';
+		}
+
+		const res = await module.pool.query({
+			text: `
+SELECT z."value",
+       z."score"
+  FROM "legacy_object_live" o
+ INNER JOIN "legacy_zset" z
+         ON o."_key" = z."_key"
+        AND o."type" = z."type"
+ WHERE o."_key" = $1::TEXT
+  AND z."value" LIKE '${match}'
+  LIMIT $2::INTEGER`,
+			values: [params.key, params.limit],
+		});
+		if (!params.withScores) {
+			return res.rows.map(r => r.value);
+		}
+		return res.rows.map(r => ({ value: r.value, score: parseFloat(r.score) }));
+	};
 
 	module.processSortedSet = async function (setKey, process, options) {
 		const client = await module.pool.connect();

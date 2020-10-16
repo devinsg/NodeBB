@@ -1,24 +1,21 @@
 'use strict';
 
 const fs = require('fs');
-const util = require('util');
 const path = require('path');
 const winston = require('winston');
 
 const db = require('../database');
 const file = require('../file');
+const { paths } = require('../constants');
 
 const Data = module.exports;
 
 const basePath = path.join(__dirname, '../../');
 
-const readFileAsync = util.promisify(fs.readFile);
-const statAsync = util.promisify(fs.stat);
-
 Data.getPluginPaths = async function () {
 	let plugins = await db.getSortedSetRange('plugins:active', 0, -1);
 	plugins = plugins.filter(plugin => plugin && typeof plugin === 'string')
-		.map(plugin => path.join(__dirname, '../../node_modules/', plugin));
+		.map(plugin => path.join(paths.nodeModules, plugin));
 
 	const exists = await Promise.all(plugins.map(p => file.exists(p)));
 	return plugins.filter((p, i) => exists[i]);
@@ -26,8 +23,8 @@ Data.getPluginPaths = async function () {
 
 Data.loadPluginInfo = async function (pluginPath) {
 	const [packageJson, pluginJson] = await Promise.all([
-		readFileAsync(path.join(pluginPath, 'package.json'), 'utf8'),
-		readFileAsync(path.join(pluginPath, 'plugin.json'), 'utf8'),
+		fs.promises.readFile(path.join(pluginPath, 'package.json'), 'utf8'),
+		fs.promises.readFile(path.join(pluginPath, 'plugin.json'), 'utf8'),
 	]);
 
 	let pluginData;
@@ -48,7 +45,7 @@ Data.loadPluginInfo = async function (pluginPath) {
 	} catch (err) {
 		var pluginDir = path.basename(pluginPath);
 
-		winston.error('[plugins/' + pluginDir + '] Error in plugin.json or package.json!', err);
+		winston.error('[plugins/' + pluginDir + '] Error in plugin.json or package.json!' + err.stack);
 		throw new Error('[[error:parse-error]]');
 	}
 	return pluginData;
@@ -96,7 +93,7 @@ Data.getStaticDirectories = async function (pluginData) {
 
 		const dirPath = path.join(pluginData.path, pluginData.staticDirs[route]);
 		try {
-			const stats = await statAsync(dirPath);
+			const stats = await fs.promises.stat(dirPath);
 			if (!stats.isDirectory()) {
 				winston.warn('[plugins/' + pluginData.id + '] Mapped path \'' +
 					route + ' => ' + dirPath + '\' is not a directory.');
@@ -220,47 +217,18 @@ Data.getModules = async function getModules(pluginData) {
 	return modules;
 };
 
-Data.getSoundpack = async function getSoundpack(pluginData) {
-	var spack = pluginData.soundpack;
-	if (!spack || !spack.dir || !spack.sounds) {
-		return;
-	}
-
-	var soundpack = {};
-	soundpack.name = spack.name || pluginData.name;
-	soundpack.id = pluginData.id;
-	soundpack.dir = path.join(pluginData.path, spack.dir);
-	soundpack.sounds = {};
-
-	async function processSoundPack(name) {
-		const soundFile = spack.sounds[name];
-		const exists = await file.exists(path.join(soundpack.dir, soundFile));
-		if (!exists) {
-			winston.warn('[plugins] Sound file not found: ' + soundFile);
-			return;
-		}
-		soundpack.sounds[name] = soundFile;
-	}
-
-	await Promise.all(Object.keys(spack.sounds).map(key => processSoundPack(key)));
-
-	const len = Object.keys(soundpack.sounds).length;
-	winston.verbose('[plugins] Found ' + len + ' sound file(s) for plugin ' + pluginData.id);
-	return soundpack;
-};
-
 Data.getLanguageData = async function getLanguageData(pluginData) {
 	if (typeof pluginData.languages !== 'string') {
 		return;
 	}
 
-	const pathToFolder = path.join(__dirname, '../../node_modules/', pluginData.id, pluginData.languages);
-	const paths = await file.walk(pathToFolder);
+	const pathToFolder = path.join(paths.nodeModules, pluginData.id, pluginData.languages);
+	const filepaths = await file.walk(pathToFolder);
 
 	const namespaces = [];
 	const languages = [];
 
-	paths.forEach(function (p) {
+	filepaths.forEach(function (p) {
 		const rel = path.relative(pathToFolder, p).split(/[/\\]/);
 		const language = rel.shift().replace('_', '-').replace('@', '-x-');
 		const namespace = rel.join('/').replace(/\.json$/, '');
@@ -274,7 +242,7 @@ Data.getLanguageData = async function getLanguageData(pluginData) {
 	});
 
 	return {
-		languages: languages,
-		namespaces: namespaces,
+		languages,
+		namespaces,
 	};
 };

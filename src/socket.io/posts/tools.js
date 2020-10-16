@@ -2,6 +2,7 @@
 
 const posts = require('../../posts');
 const topics = require('../../topics');
+const flags = require('../../flags');
 const events = require('../../events');
 const websockets = require('../index');
 const socketTopics = require('../topics');
@@ -11,6 +12,7 @@ const social = require('../../social');
 const user = require('../../user');
 const utils = require('../../utils');
 
+const sockets = require('..');
 
 module.exports = function (SocketPosts) {
 	SocketPosts.loadPostTools = async function (socket, data) {
@@ -19,7 +21,7 @@ module.exports = function (SocketPosts) {
 		}
 
 		const results = await utils.promiseParallel({
-			posts: posts.getPostFields(data.pid, ['deleted', 'bookmarks', 'uid', 'ip']),
+			posts: posts.getPostFields(data.pid, ['deleted', 'bookmarks', 'uid', 'ip', 'flagId']),
 			isAdmin: user.isAdministrator(socket.uid),
 			isGlobalMod: user.isGlobalModerator(socket.uid),
 			isModerator: user.isModerator(socket.uid, data.cid),
@@ -27,6 +29,7 @@ module.exports = function (SocketPosts) {
 			canDelete: privileges.posts.canDelete(data.pid, socket.uid),
 			canPurge: privileges.posts.canPurge(data.pid, socket.uid),
 			canFlag: privileges.posts.canFlag(data.pid, socket.uid),
+			flagged: flags.exists('post', data.pid, socket.uid),	// specifically, whether THIS calling user flagged
 			bookmarked: posts.hasBookmarked(data.pid, socket.uid),
 			tools: plugins.fireHook('filter:post.tools', { pid: data.pid, uid: socket.uid, tools: [] }),
 			postSharing: social.getActivePostSharing(),
@@ -47,7 +50,12 @@ module.exports = function (SocketPosts) {
 		postData.display_change_owner_tools = results.isAdmin || results.isModerator;
 		postData.display_ip_ban = (results.isAdmin || results.isGlobalMod) && !postData.selfPost;
 		postData.display_history = results.history;
-		postData.toolsVisible = postData.tools.length || postData.display_moderator_tools;
+		postData.flags = {
+			flagId: parseInt(results.posts.flagId, 10) || null,
+			can: results.canFlag.flag,
+			exists: !!results.posts.flagId,
+			flagged: results.flagged,
+		};
 
 		if (!results.isAdmin && !results.canViewInfo) {
 			postData.ip = undefined;
@@ -56,6 +64,8 @@ module.exports = function (SocketPosts) {
 	};
 
 	SocketPosts.delete = async function (socket, data) {
+		sockets.warnDeprecated(socket, 'DELETE /api/v3/posts/:pid/state');
+
 		await deleteOrRestore(socket, data, {
 			command: 'delete',
 			event: 'event:post_deleted',
@@ -64,6 +74,8 @@ module.exports = function (SocketPosts) {
 	};
 
 	SocketPosts.restore = async function (socket, data) {
+		sockets.warnDeprecated(socket, 'PUT /api/v3/posts/:pid/state');
+
 		await deleteOrRestore(socket, data, {
 			command: 'restore',
 			event: 'event:post_restored',
@@ -81,7 +93,7 @@ module.exports = function (SocketPosts) {
 			await deleteOrRestoreTopicOf(params.command, data.pid, socket);
 		}
 
-		websockets.in('topic_' + data.tid).emit(params.event, postData);
+		websockets.in('topic_' + postData.tid).emit(params.event, postData);
 
 		await events.log({
 			type: params.type,
@@ -106,11 +118,13 @@ module.exports = function (SocketPosts) {
 		}
 		for (const pid of data.pids) {
 			/* eslint-disable no-await-in-loop */
-			await SocketPosts[command](socket, { pid: pid, tid: data.tid });
+			await SocketPosts[command](socket, { pid: pid });
 		}
 	}
 
 	SocketPosts.purge = async function (socket, data) {
+		sockets.warnDeprecated(socket, 'DELETE /api/v3/posts/:pid');
+
 		if (!data || !parseInt(data.pid, 10)) {
 			throw new Error('[[error:invalid-data]]');
 		}
@@ -124,10 +138,15 @@ module.exports = function (SocketPosts) {
 		const postData = await posts.getPostFields(data.pid, ['toPid', 'tid']);
 		postData.pid = data.pid;
 
-		await posts.tools.purge(socket.uid, data.pid);
+		const canPurge = await privileges.posts.canPurge(data.pid, socket.uid);
+		if (!canPurge) {
+			throw new Error('[[error:no-privileges]]');
+		}
+		require('../../posts/cache').del(data.pid);
+		await posts.purge(data.pid, socket.uid);
 
-		websockets.in('topic_' + data.tid).emit('event:post_purged', postData);
-		const topicData = await topics.getTopicFields(data.tid, ['title', 'cid']);
+		websockets.in('topic_' + postData.tid).emit('event:post_purged', postData);
+		const topicData = await topics.getTopicFields(postData.tid, ['title', 'cid']);
 
 		await events.log({
 			type: 'post-purge',

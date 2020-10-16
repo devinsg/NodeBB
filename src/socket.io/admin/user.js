@@ -4,12 +4,15 @@ const async = require('async');
 const winston = require('winston');
 
 const db = require('../../database');
+const api = require('../../api');
 const groups = require('../../groups');
 const user = require('../../user');
 const events = require('../../events');
 const meta = require('../../meta');
 const plugins = require('../../plugins');
 const translator = require('../../translator');
+const flags = require('../../flags');
+const sockets = require('..');
 
 const User = module.exports;
 
@@ -56,10 +59,8 @@ User.removeAdmins = async function (socket, uids) {
 };
 
 User.createUser = async function (socket, userData) {
-	if (!userData) {
-		throw new Error('[[error:invalid-data]]');
-	}
-	return await user.create(userData);
+	sockets.warnDeprecated(socket, 'POST /api/v3/users');
+	return await api.users.create(socket, userData);
 };
 
 User.resetLockouts = async function (socket, uids) {
@@ -76,7 +77,10 @@ User.validateEmail = async function (socket, uids) {
 
 	uids = uids.filter(uid => parseInt(uid, 10));
 	await db.setObjectField(uids.map(uid => 'user:' + uid), 'email:confirmed', 1);
-	await db.sortedSetRemove('users:notvalidated', uids);
+	for (const uid of uids) {
+		await groups.join('verified-users', uid);
+		await groups.leave('unverified-users', uid);
+	}
 };
 
 User.sendValidationEmail = async function (socket, uids) {
@@ -89,7 +93,7 @@ User.sendValidationEmail = async function (socket, uids) {
 	}
 
 	await async.eachLimit(uids, 50, async function (uid) {
-		await user.email.sendValidationEmail(uid);
+		await user.email.sendValidationEmail(uid, { force: true });
 	});
 };
 
@@ -121,18 +125,25 @@ User.forcePasswordReset = async function (socket, uids) {
 };
 
 User.deleteUsers = async function (socket, uids) {
+	await canDeleteUids(uids);
 	deleteUsers(socket, uids, async function (uid) {
-		await user.deleteAccount(uid);
+		return await user.deleteAccount(uid);
 	});
+};
+
+User.deleteUsersContent = async function (socket, uids) {
+	await canDeleteUids(uids);
+	await Promise.all(uids.map(async (uid) => {
+		await user.deleteContent(socket.uid, uid);
+	}));
 };
 
 User.deleteUsersAndContent = async function (socket, uids) {
-	deleteUsers(socket, uids, async function (uid) {
-		await user.delete(socket.uid, uid);
-	});
+	sockets.warnDeprecated(socket, 'DELETE /api/v3/users or DELETE /api/v3/users/:uid');
+	await api.users.deleteMany(socket, { uids });
 };
 
-async function deleteUsers(socket, uids, method) {
+async function canDeleteUids(uids) {
 	if (!Array.isArray(uids)) {
 		throw new Error('[[error:invalid-data]]');
 	}
@@ -140,7 +151,11 @@ async function deleteUsers(socket, uids, method) {
 	if (isMembers.includes(true)) {
 		throw new Error('[[error:cant-delete-other-admins]]');
 	}
+}
+
+async function deleteUsers(socket, uids, method) {
 	async function doDelete(uid) {
+		await flags.resolveFlag('user', uid, socket.uid);
 		const userData = await method(uid);
 		await events.log({
 			type: 'user-delete',
@@ -154,39 +169,15 @@ async function deleteUsers(socket, uids, method) {
 			callerUid: socket.uid,
 			uid: uid,
 			ip: socket.ip,
+			user: userData,
 		});
 	}
 	try {
 		await Promise.all(uids.map(uid => doDelete(uid)));
 	} catch (err) {
-		winston.error(err);
+		winston.error(err.stack);
 	}
 }
-
-User.search = async function (socket, data) {
-	const searchData = await user.search({
-		query: data.query,
-		searchBy: data.searchBy,
-		uid: socket.uid,
-	});
-
-	if (!searchData.users.length) {
-		return searchData;
-	}
-
-	const uids = searchData.users.map(user => user && user.uid);
-	const userInfo = await user.getUsersFields(uids, ['email', 'flags', 'lastonline', 'joindate']);
-
-	searchData.users.forEach(function (user, index) {
-		if (user && userInfo[index]) {
-			user.email = userInfo[index].email;
-			user.flags = userInfo[index].flags || 0;
-			user.lastonlineISO = userInfo[index].lastonlineISO;
-			user.joindateISO = userInfo[index].joindateISO;
-		}
-	});
-	return searchData;
-};
 
 User.restartJobs = async function () {
 	user.startJobs();

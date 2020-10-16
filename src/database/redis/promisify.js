@@ -7,6 +7,7 @@ module.exports = function (redisClient) {
 		send_command: util.promisify(redisClient.send_command).bind(redisClient),
 
 		exists: util.promisify(redisClient.exists).bind(redisClient),
+		scan: util.promisify(redisClient.scan).bind(redisClient),
 
 		del: util.promisify(redisClient.del).bind(redisClient),
 		get: util.promisify(redisClient.get).bind(redisClient),
@@ -18,6 +19,8 @@ module.exports = function (redisClient) {
 		expireat: util.promisify(redisClient.expireat).bind(redisClient),
 		pexpire: util.promisify(redisClient.pexpire).bind(redisClient),
 		pexpireat: util.promisify(redisClient.pexpireat).bind(redisClient),
+		ttl: util.promisify(redisClient.ttl).bind(redisClient),
+		pttl: util.promisify(redisClient.pttl).bind(redisClient),
 
 		hmset: util.promisify(redisClient.hmset).bind(redisClient),
 		hset: util.promisify(redisClient.hset).bind(redisClient),
@@ -48,11 +51,11 @@ module.exports = function (redisClient) {
 		zrank: util.promisify(redisClient.zrank).bind(redisClient),
 		zrevrank: util.promisify(redisClient.zrevrank).bind(redisClient),
 		zincrby: util.promisify(redisClient.zincrby).bind(redisClient),
-
 		zrangebylex: util.promisify(redisClient.zrangebylex).bind(redisClient),
 		zrevrangebylex: util.promisify(redisClient.zrevrangebylex).bind(redisClient),
 		zremrangebylex: util.promisify(redisClient.zremrangebylex).bind(redisClient),
 		zlexcount: util.promisify(redisClient.zlexcount).bind(redisClient),
+		zscan: util.promisify(redisClient.zscan).bind(redisClient),
 
 		lpush: util.promisify(redisClient.lpush).bind(redisClient),
 		rpush: util.promisify(redisClient.rpush).bind(redisClient),

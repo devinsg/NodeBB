@@ -1,13 +1,13 @@
 'use strict';
 
 
-define('forum/account/settings', ['forum/account/header', 'components', 'sounds', 'translator'], function (header, components, sounds, translator) {
+define('forum/account/settings', ['forum/account/header', 'components', 'translator'], function (header, components, translator) {
 	var	AccountSettings = {};
 
 	// If page skin is changed but not saved, switch the skin back
 	$(window).on('action:ajaxify.start', function () {
 		if (ajaxify.data.template.name === 'account/settings' && $('#bootswatchSkin').val() !== config.bootswatchSkin) {
-			app.reskin(config.bootswatchSkin);
+			reskin(config.bootswatchSkin);
 		}
 	});
 
@@ -31,18 +31,10 @@ define('forum/account/settings', ['forum/account/header', 'components', 'sounds'
 		});
 
 		$('#bootswatchSkin').on('change', function () {
-			app.reskin($(this).val());
+			reskin($(this).val());
 		});
 
 		$('[data-property="homePageRoute"]').on('change', toggleCustomRoute);
-
-		$('.account').find('button[data-action="play"]').on('click', function (e) {
-			e.preventDefault();
-
-			var	soundName = $(this).parent().parent().find('select')
-				.val();
-			sounds.playSound(soundName);
-		});
 
 		toggleCustomRoute();
 
@@ -61,13 +53,13 @@ define('forum/account/settings', ['forum/account/header', 'components', 'sounds'
 			}
 
 			switch (input.attr('type')) {
-			case 'text':
-			case 'textarea':
-				settings[setting] = input.val();
-				break;
-			case 'checkbox':
-				settings[setting] = input.is(':checked') ? 1 : 0;
-				break;
+				case 'text':
+				case 'textarea':
+					settings[setting] = input.val();
+					break;
+				case 'checkbox':
+					settings[setting] = input.is(':checked') ? 1 : 0;
+					break;
 			}
 		});
 
@@ -93,15 +85,14 @@ define('forum/account/settings', ['forum/account/header', 'components', 'sounds'
 				}
 			}
 
-			sounds.loadMap();
-
 			if (languageChanged && parseInt(app.user.uid, 10) === parseInt(ajaxify.data.theirid, 10)) {
 				translator.translate('[[language:dir]]', config.userLang, function (translated) {
 					var htmlEl = $('html');
 					htmlEl.attr('data-dir', translated);
 					htmlEl.css('direction', translated);
 				});
-				$.getScript(config.relative_path + '/assets/vendor/jquery/timeago/locales/jquery.timeago.' + utils.userLangToTimeagoCode(config.userLang) + '.js', function () {
+
+				translator.switchTimeagoLanguage(utils.userLangToTimeagoCode(config.userLang), function () {
 					overrides.overrideTimeago();
 					ajaxify.refresh();
 				});
@@ -116,6 +107,43 @@ define('forum/account/settings', ['forum/account/header', 'components', 'sounds'
 			$('#homePageCustom').hide();
 			$('[data-property="homePageCustom"]').val('');
 		}
+	}
+
+	function reskin(skinName) {
+		var clientEl = Array.prototype.filter.call(document.querySelectorAll('link[rel="stylesheet"]'), function (el) {
+			return el.href.indexOf(config.relative_path + '/assets/client') !== -1;
+		})[0] || null;
+		if (!clientEl) {
+			return;
+		}
+
+		var currentSkinClassName = $('body').attr('class').split(/\s+/).filter(function (className) {
+			return className.startsWith('skin-');
+		});
+		if (!currentSkinClassName[0]) {
+			return;
+		}
+		var currentSkin = currentSkinClassName[0].slice(5);
+		currentSkin = currentSkin !== 'noskin' ? currentSkin : '';
+
+		// Stop execution if skin didn't change
+		if (skinName === currentSkin) {
+			return;
+		}
+
+		var linkEl = document.createElement('link');
+		linkEl.rel = 'stylesheet';
+		linkEl.type = 'text/css';
+		linkEl.href = config.relative_path + '/assets/client' + (skinName ? '-' + skinName : '') + '.css';
+		linkEl.onload = function () {
+			clientEl.parentNode.removeChild(clientEl);
+
+			// Update body class with proper skin name
+			$('body').removeClass(currentSkinClassName.join(' '));
+			$('body').addClass('skin-' + (skinName || 'noskin'));
+		};
+
+		document.head.appendChild(linkEl);
 	}
 
 	return AccountSettings;

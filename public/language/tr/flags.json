@@ -1,8 +1,7 @@
 {
 	"state": "Bildiri",
-	"reporter": "Muhabir",
-	"reported-at": "Bildirildi",
-	"description": "Açıklama",
+	"reports": "Raporlar",
+	"first-reported": "İlk rapor tarihi",
 	"no-flags": "Yaşasın! Şikayet bulunamadı.",
 	"assignee": "Vekil",
 	"update": "Güncelle",
@@ -26,12 +25,17 @@
 	"filter-quick-mine": "Vekil atandı",
 	"filter-cid-all": "Tüm kategoriler",
 	"apply-filters": "Filtreleri Onayla",
+	"more-filters": "Daha Fazla Filtre",
 
-	"quick-links": "Akıllı Bağlantılar",
+	"quick-actions": "Hızlı Eylemler",
 	"flagged-user": "Şikayet Edilen Kullanıcı",
 	"view-profile": "Profili Gör",
 	"start-new-chat": "Yeni Sohbet Başlat",
 	"go-to-target": "Şikayet Edilen İçeriği Gör",
+	"assign-to-me": "Kendime ata",
+	"delete-post": "İletiyi Sil",
+	"purge-post": "İletiyi Temizle",
+	"restore-post": "İletiyi Geri Getir",
 
 	"user-view": "Profili Gör",
 	"user-edit": "Profili Düzenle",
@@ -39,9 +43,11 @@
 	"notes": "Şikayet Notu",
 	"add-note": "Not Ekle",
 	"no-notes": "Not paylaşılmadı",
+	"delete-note-confirm": "Bu şikayet notunu silmek istediğinize emin misiniz?",
+	"note-added": "Not eklendi",
+	"note-deleted": "Not silindi",
 
-	"history": "Şikayet Geçmişi",
-	"back": "Şikayet Listesine Geri Dön",
+	"history": "Hesap &amp; Şikayet Geçmişi",
 	"no-history": "Şikayet geçmişi yok",
 
 	"state-all": "Bütün Bildiriler",
@@ -50,7 +56,16 @@
 	"state-resolved": "Çözüldü",
 	"state-rejected": "Reddedildi",
 	"no-assignee": "Atanmadı",
-	"note-added": "Not eklendi",
+
+	"sort": "Sırala",
+	"sort-newest": "En yenisi önce",
+	"sort-oldest": "En eskisi önce",
+	"sort-reports": "En çok raporlanan",
+	"sort-all": "Tüm şikayet türleri...",
+	"sort-posts-only": "Sadece iletiler...",
+	"sort-downvotes": "En çok eksilenen",
+	"sort-upvotes": "En çok artılanan",
+	"sort-replies": "En çok cevap verilen",
 
 	"modal-title": "Uygunsuz İçeriği Rapor Et",
 	"modal-body": "%1 %2 için şikayet nedenini belirtiniz. Alternatif olarak hızlı rapor butonlarından birini kullanabilirsiniz.",
@@ -62,5 +77,9 @@
 	"modal-submit-success": "İçerik, denetlemesi için şikayet edildi.",
 	"modal-submit-confirm": "Gönderimi Onayla",
 	"modal-submit-confirm-text": "Zaten belirtilen özel bir sebebin var. Hızlı raporla göndermek istediğinizden emin misin?",
-	"modal-submit-confirm-text-help": "Hızlı bir rapor göndermek tanımlanan özel nedenlerin üzerine yazacaktır."
+	"modal-submit-confirm-text-help": "Hızlı bir rapor göndermek tanımlanan özel nedenlerin üzerine yazacaktır.",
+
+	"bulk-actions": "Toplu Aksiyonlar",
+	"bulk-resolve": "Şikayetleri Çözümle",
+	"bulk-success": "%1 şikayet güncellendi"
 }

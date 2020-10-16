@@ -1,7 +1,9 @@
 'use strict';
 
-
-define('admin/manage/groups', ['translator', 'benchpress'], function (translator, Benchpress) {
+define('admin/manage/groups', [
+	'categorySelector',
+	'api',
+], function (categorySelector, api) {
 	var	Groups = {};
 
 	var intervalId = 0;
@@ -35,47 +37,56 @@ define('admin/manage/groups', ['translator', 'benchpress'], function (translator
 				hidden: $('#create-group-hidden').is(':checked') ? 1 : 0,
 			};
 
-			socket.emit('admin.groups.create', submitObj, function (err, groupData) {
-				if (err) {
-					if (err.hasOwnProperty('message') && utils.hasLanguageKey(err.message)) {
-						err = '[[admin/manage/groups:alerts.create-failure]]';
-					}
-					createModalError.translateHtml(err).removeClass('hide');
-				} else {
-					createModalError.addClass('hide');
-					createGroupName.val('');
-					createModal.on('hidden.bs.modal', function () {
-						ajaxify.go('admin/manage/groups/' + groupData.name);
-					});
-					createModal.modal('hide');
+			api.post('/groups', submitObj, (response) => {
+				createModalError.addClass('hide');
+				createGroupName.val('');
+				createModal.on('hidden.bs.modal', function () {
+					ajaxify.go('admin/manage/groups/' + response.name);
+				});
+				createModal.modal('hide');
+			}).catch((err) => {
+				if (!utils.hasLanguageKey(err.status.message)) {
+					err.status.message = '[[admin/manage/groups:alerts.create-failure]]';
 				}
+				createModalError.translateHtml(err.status.message).removeClass('hide');
 			});
 		});
 
-		$('.groups-list').on('click', 'button[data-action]', function () {
+		$('.groups-list').on('click', '[data-action]', function () {
 			var el = $(this);
 			var action = el.attr('data-action');
 			var groupName = el.parents('tr[data-groupname]').attr('data-groupname');
 
 			switch (action) {
-			case 'delete':
-				bootbox.confirm('[[admin/manage/groups:alerts.confirm-delete]]', function (confirm) {
-					if (confirm) {
-						socket.emit('groups.delete', {
-							groupName: groupName,
-						}, function (err) {
-							if (err) {
-								return app.alertError(err.message);
-							}
+				case 'delete':
+					bootbox.confirm('[[admin/manage/groups:alerts.confirm-delete]]', function (confirm) {
+						if (confirm) {
+							socket.emit('groups.delete', {
+								groupName: groupName,
+							}, function (err) {
+								if (err) {
+									return app.alertError(err.message);
+								}
 
-							ajaxify.refresh();
-						});
-					}
-				});
-				break;
+								ajaxify.refresh();
+							});
+						}
+					});
+					break;
 			}
 		});
+
+		enableCategorySelectors();
 	};
+
+	function enableCategorySelectors() {
+		$('.groups-list [component="category-selector"]').each(function () {
+			var nameEncoded = $(this).parents('[data-name-encoded]').attr('data-name-encoded');
+			categorySelector.init($(this), function (selectedCategory) {
+				ajaxify.go('admin/manage/privileges/' + selectedCategory.cid + '?group=' + nameEncoded);
+			});
+		});
+	}
 
 	function handleSearch() {
 		var queryEl = $('#group-search');
@@ -96,13 +107,13 @@ define('admin/manage/groups', ['translator', 'benchpress'], function (translator
 					return app.alertError(err.message);
 				}
 
-				Benchpress.parse('admin/manage/groups', 'groups', {
+				app.parseAndTranslate('admin/manage/groups', 'groups', {
 					groups: groups,
+					categories: ajaxify.data.categories,
 				}, function (html) {
-					translator.translate(html, function (html) {
-						groupsEl.find('[data-groupname]').remove();
-						groupsEl.find('tbody').append(html);
-					});
+					groupsEl.find('[data-groupname]').remove();
+					groupsEl.find('tbody').append(html);
+					enableCategorySelectors();
 				});
 			});
 		}

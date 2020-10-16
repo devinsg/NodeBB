@@ -1,4 +1,4 @@
-# <img alt="NodeBB" src="http://i.imgur.com/mYxPPtB.png" />
+# <img alt="NodeBB" src="https://github.com/NodeBB/assets/raw/master/nodebb-svg/nodebb.svg" />
 
 [![Build Status](https://travis-ci.org/NodeBB/NodeBB.svg?branch=master)](https://travis-ci.org/NodeBB/NodeBB)
 [![Coverage Status](https://coveralls.io/repos/github/NodeBB/NodeBB/badge.svg?branch=master)](https://coveralls.io/github/NodeBB/NodeBB?branch=master)
@@ -48,8 +48,8 @@ Our minimalist "Persona" theme gets you going right away, no coding experience r
 
 NodeBB requires the following software to be installed:
 
-* A version of Node.js at least 8 or greater ([installation/upgrade instructions](https://github.com/nodesource/distributions))
-* Redis, version 2.8.9 or greater **or** MongoDB, version 2.6 or greater
+* A version of Node.js at least 12 or greater ([installation/upgrade instructions](https://github.com/nodesource/distributions))
+* MongoDB, version 2.6 or greater **or** Redis, version 2.8.9 or greater
 * nginx, version 1.3.13 or greater (**only if** intending to use nginx to proxy requests to a NodeBB)
 
 ## Installation

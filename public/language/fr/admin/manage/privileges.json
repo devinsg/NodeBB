@@ -1,8 +1,9 @@
 {
 	"global": "Global",
-	"global.no-users": "Aucun privilège global spécifique à l'utilisateur.",
+	"admin": "Admin",
 	"group-privileges": "Privilèges de groupe",
 	"user-privileges": "Privilèges d'utilisateur",
+	"edit-privileges": "Éditer les privilèges",
 	"chat": "Chat",
 	"upload-images": "Images envoyées",
 	"upload-files": "Fichiers envoyés",
@@ -31,5 +32,22 @@
 	"downvote-posts": "Messages négatifs",
 	"delete-topics": "Supprimer les sujets",
 	"purge": "Purger",
-	"moderate": "Modérer"
+	"moderate": "Modérer",
+	"admin-dashboard": "Tableau de bord",
+	"admin-categories": "Catégories",
+	"admin-privileges": "Privilèges",
+	"admin-users": "Utilisateurs",
+	"admin-settings": "Paramètres",
+
+	"alert.confirm-moderate": "<strong>Voulez-vous vraiment accorder le privilège de modération à ce groupe d'utilisateurs ?</strong> Ce groupe est public et tous les utilisateurs peuvent le rejoindre à volonté.",
+	"alert.confirm-save": "Veuillez confirmer votre intention de sauvegarder ces privilèges",
+	"alert.saved": "Changements de privilèges enregistrés et appliqués",
+	"alert.confirm-discard": "Êtes-vous sûr de vouloir annuler vos modifications de privilèges ?",
+	"alert.discarded": "Modifications de privilèges annulés",
+	"alert.confirm-copyToAll": "Voulez-vous vraiment appliquer ce jeu de privilèges à <strong>toutes les catégories</strong> ?",
+	"alert.confirm-copyToAllGroup": "Voulez-vous vraiment appliquer le jeu de privilèges de ce groupe à <strong>toutes les catégories</strong> ?",
+	"alert.confirm-copyToChildren": "Voulez-vous vraiment appliquer ces privilèges à <strong>toutes les catégories incluses (enfants)</strong> ?",
+	"alert.confirm-copyToChildrenGroup": "Voulez-vous vraiment appliquer le jeu de privilèges de ce groupe à <strong>toutes les catégories incluses (enfants)</strong> ?",
+	"alert.no-undo": "<em>Cette action ne peut pas être annulée.</em>",
+	"alert.admin-warning": "Les administrateurs obtiennent implicitement tous les privilèges"
 }

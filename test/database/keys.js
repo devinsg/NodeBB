@@ -61,6 +61,21 @@ describe('Key methods', function () {
 		});
 	});
 
+	describe('scan', function () {
+		it('should scan keys for pattern', async function () {
+			await db.sortedSetAdd('ip:123:uid', 1, 'a');
+			await db.sortedSetAdd('ip:123:uid', 2, 'b');
+			await db.sortedSetAdd('ip:124:uid', 2, 'b');
+			await db.sortedSetAdd('ip:1:uid', 1, 'a');
+			await db.sortedSetAdd('ip:23:uid', 1, 'a');
+			const data = await db.scan({ match: 'ip:1*' });
+			assert.equal(data.length, 3);
+			assert(data.includes('ip:123:uid'));
+			assert(data.includes('ip:124:uid'));
+			assert(data.includes('ip:1:uid'));
+		});
+	});
+
 	it('should delete a key without error', function (done) {
 		db.delete('testKey', function (err) {
 			assert.ifError(err);
@@ -308,6 +323,28 @@ describe('Key methods', function () {
 				db.type('typeString', function (err, type) {
 					assert.ifError(err);
 					assert.equal(type, 'string');
+					done();
+				});
+			});
+		});
+
+		it('should expire a key using seconds', function (done) {
+			db.expire('testKey', 86400, function (err) {
+				assert.ifError(err);
+				db.ttl('testKey', function (err, ttl) {
+					assert.ifError(err);
+					assert.equal(Math.round(86400 / 1000), Math.round(ttl / 1000));
+					done();
+				});
+			});
+		});
+
+		it('should expire a key using milliseconds', function (done) {
+			db.pexpire('testKey', 86400000, function (err) {
+				assert.ifError(err);
+				db.pttl('testKey', function (err, pttl) {
+					assert.ifError(err);
+					assert.equal(Math.round(86400000 / 1000000), Math.round(pttl / 1000000));
 					done();
 				});
 			});

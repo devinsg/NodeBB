@@ -10,6 +10,7 @@ const LRU = require('lru-cache');
 const db = require('./database');
 const utils = require('./utils');
 const plugins = require('./plugins');
+const meta = require('./meta');
 
 const Analytics = module.exports;
 
@@ -21,21 +22,19 @@ let pageViewsGuest = 0;
 let pageViewsBot = 0;
 let uniqueIPCount = 0;
 let uniquevisitors = 0;
+let ipCache;
 
-/**
- * TODO: allow the cache's max value to be configurable. On high-traffic installs,
- * the cache could be exhausted continuously if there are more than 500 concurrently
- * active users
- */
-var ipCache = new LRU({
-	max: 500,
-	length: function () { return 1; },
-	maxAge: 0,
-});
+Analytics.init = async function () {
+	ipCache = new LRU({
+		max: parseInt(meta.config['analytics:maxCache'], 10) || 500,
+		length: function () { return 1; },
+		maxAge: 0,
+	});
 
-new cronJob('*/10 * * * * *', function () {
-	Analytics.writeData();
-}, null, true);
+	new cronJob('*/10 * * * * *', function () {
+		Analytics.writeData();
+	}, null, true);
+};
 
 Analytics.increment = function (keys, callback) {
 	keys = Array.isArray(keys) ? keys : [keys];
@@ -52,7 +51,7 @@ Analytics.increment = function (keys, callback) {
 	}
 };
 
-Analytics.pageView = function (payload) {
+Analytics.pageView = async function (payload) {
 	pageViews += 1;
 
 	if (payload.uid > 0) {
@@ -71,20 +70,16 @@ Analytics.pageView = function (payload) {
 			ipCache.set(payload.ip + nconf.get('secret'), hash);
 		}
 
-		db.sortedSetScore('ip:recent', hash, function (err, score) {
-			if (err) {
-				return;
-			}
-			if (!score) {
-				uniqueIPCount += 1;
-			}
-			var today = new Date();
-			today.setHours(today.getHours(), 0, 0, 0);
-			if (!score || score < today.getTime()) {
-				uniquevisitors += 1;
-				db.sortedSetAdd('ip:recent', Date.now(), hash);
-			}
-		});
+		const score = await db.sortedSetScore('ip:recent', hash);
+		if (!score) {
+			uniqueIPCount += 1;
+		}
+		const today = new Date();
+		today.setHours(today.getHours(), 0, 0, 0);
+		if (!score || score < today.getTime()) {
+			uniquevisitors += 1;
+			await db.sortedSetAdd('ip:recent', Date.now(), hash);
+		}
 	}
 };
 
@@ -142,7 +137,7 @@ Analytics.writeData = async function () {
 	try {
 		await Promise.all(dbQueue);
 	} catch (err) {
-		winston.error('[analytics] Encountered error while writing analytics to data store', err);
+		winston.error('[analytics] Encountered error while writing analytics to data store', err.stack);
 		throw err;
 	}
 };
@@ -242,4 +237,4 @@ Analytics.getBlacklistAnalytics = async function () {
 	});
 };
 
-Analytics.async = require('./promisify')(Analytics);
+require('./promisify')(Analytics);

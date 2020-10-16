@@ -17,7 +17,13 @@ const file = require('../file');
 module.exports = function (User) {
 	const deletesInProgress = {};
 
-	User.delete = async function (callerUid, uid) {
+	User.delete = async (callerUid, uid) => {
+		await User.deleteContent(callerUid, uid);
+		await removeFromSortedSets(uid);
+		return await User.deleteAccount(uid);
+	};
+
+	User.deleteContent = async function (callerUid, uid) {
 		if (parseInt(uid, 10) <= 0) {
 			throw new Error('[[error:invalid-uid]]');
 		}
@@ -25,12 +31,10 @@ module.exports = function (User) {
 			throw new Error('[[error:already-deleting]]');
 		}
 		deletesInProgress[uid] = 'user.delete';
-		await removeFromSortedSets(uid);
 		await deletePosts(callerUid, uid);
 		await deleteTopics(callerUid, uid);
 		await deleteUploads(uid);
-		const userData = await User.deleteAccount(uid);
-		return userData;
+		await deleteQueued(uid);
 	};
 
 	async function deletePosts(callerUid, uid) {
@@ -58,6 +62,16 @@ module.exports = function (User) {
 		}, { alwaysStartAt: 0 });
 	}
 
+	async function deleteQueued(uid) {
+		let deleteIds = [];
+		await batch.processSortedSet('post:queue', async function (ids) {
+			const data = await db.getObjects(ids.map(id => 'post:queue:' + id));
+			const userQueuedIds = data.filter(d => parseInt(d.uid, 10) === parseInt(uid, 10)).map(d => d.id);
+			deleteIds = deleteIds.concat(userQueuedIds);
+		}, { batch: 500 });
+		await async.eachSeries(deleteIds, posts.removeFromQueue);
+	}
+
 	async function removeFromSortedSets(uid) {
 		await db.sortedSetsRemove([
 			'users:joindate',
@@ -67,7 +81,6 @@ module.exports = function (User) {
 			'users:banned:expire',
 			'users:flags',
 			'users:online',
-			'users:notvalidated',
 			'digest:day:uids',
 			'digest:week:uids',
 			'digest:month:uids',
@@ -122,6 +135,10 @@ module.exports = function (User) {
 			bulkRemove.push(['email:sorted', userData.email.toLowerCase() + ':' + uid]);
 		}
 
+		if (userData.fullname) {
+			bulkRemove.push(['fullname:sorted', userData.fullname.toLowerCase() + ':' + uid]);
+		}
+
 		await Promise.all([
 			db.sortedSetRemoveBulk(bulkRemove),
 			db.decrObjectField('global', 'userCount'),
@@ -130,6 +147,7 @@ module.exports = function (User) {
 			deleteUserIps(uid),
 			deleteBans(uid),
 			deleteUserFromFollowers(uid),
+			deleteImages(uid),
 			groups.leaveAllGroups(uid),
 		]);
 		await db.deleteAll(['followers:' + uid, 'following:' + uid, 'user:' + uid]);
@@ -192,5 +210,14 @@ module.exports = function (User) {
 			updateCount(following, 'followers:', 'followerCount'),
 			updateCount(followers, 'following:', 'followingCount'),
 		]);
+	}
+
+	async function deleteImages(uid) {
+		const extensions = User.getAllowedProfileImageExtensions();
+		const folder = path.join(nconf.get('upload_path'), 'profile');
+		await Promise.all(extensions.map(async (ext) => {
+			await file.delete(path.join(folder, uid + '-profilecover.' + ext));
+			await file.delete(path.join(folder, uid + '-profileavatar.' + ext));
+		}));
 	}
 };

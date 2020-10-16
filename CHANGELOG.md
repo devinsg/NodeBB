@@ -1,3 +1,1275 @@
+#### v1.15.0-beta.29 (2020-10-05)
+
+##### Chores
+
+*  incrementing version number - v1.15.0-beta.29 (fca176d2)
+*  refactor src/emailer.js (75459517)
+*  update changelog for v1.15.0-beta.28 (fd975a66)
+
+##### New Features
+
+*  category filter on post queue (#8710) (5d9a8681)
+*  #6594, add top/popular sections to digest email (#8709) (e60357d2)
+*  dedicated sorting buttons for plugin ordering in ACP (1761e13d)
+*  #8233, search sub categories (54737d30)
+*  move service-worker.js into its own file (f4d76f1e)
+
+##### Bug Fixes
+
+*  spec (7cd83b9a)
+*  spec (6924eb6c)
+*  test (cb2f6f7c)
+*  dont let mods load postqueue for a cid they are not a mod of (7bf6d3b8)
+*  show disabled categories in admin&mods (2ea9768e)
+*  prevent mutiple highlighted rows on category/topic pages (60afb110)
+*  spec (fbd85680)
+*  do not show TOC if fewer than 2 headings (f1de084d)
+*  params cached in autocomplete module (caa8c00f)
+*  #8686, deprecate `plugin.json/library` (#8705) (017af63f)
+*  updating minimum node version in readme (d3951ebe)
+*  update "install plugins" link to go to the download tab (5441651e)
+*  overflow on submitPluginUsage field (c56236f0)
+*  #8699 tags route is case sensitive, though tags are not (38f88fc5)
+*  early button/anchor clicks do nothing (8437130e)
+* **deps:**
+  *  update dependency nodebb-plugin-composer-default to v6.4.0 (#8716) (b3a24f74)
+  *  update dependency nodebb-plugin-mentions to v2.11.0 (#8714) (c95a3898)
+  *  update dependency nodebb-theme-slick to v1.2.36 (#8713) (fc2795d3)
+  *  update dependency nodebb-theme-vanilla to v11.2.20 (#8715) (2b0deeb7)
+  *  update dependency nodebb-theme-persona to v10.2.45 (#8711) (f14b4945)
+  *  update dependency nodebb-theme-persona to v10.2.43 (#8701) (1d0eaafb)
+  *  update dependency nodebb-theme-persona to v10.2.42 (2a1da61c)
+
+##### Refactors
+
+*  shared constants (#8707) (1aa336d8)
+
+#### v1.15.0-beta.28 (2020-09-29)
+
+##### Chores
+
+*  incrementing version number - v1.15.0-beta.28 (57f83162)
+*  update changelog for v1.15.0-beta.27 (70673824)
+
+##### New Features
+
+*  analytics:maxCache setting in ACP (14ba1a6d)
+
+#### v1.15.0-beta.27 (2020-09-29)
+
+##### Chores
+
+*  incrementing version number - v1.15.0-beta.27 (78fad240)
+*  lint notifications.js (4fc84e9f)
+*  update changelog for v1.15.0-beta.26 (5e01d288)
+* **deps:**
+  *  update dependency eslint-plugin-import to v2.22.1 (aacf8f22)
+  *  update dependency eslint to v7.10.0 (#8687) (119ab719)
+
+##### New Features
+
+* **openapi:**
+  *  refactor into indiv. files to match API & tpl routing (ffbf2d6d)
+  *  refactor into indiv. files to match API & tpl routing (84f5e4cf)
+*  #8695, allow sort for guests (ea0f3262)
+*  up recommended size to 512x512 + ACP labels for PWA (9c5b6907)
+*  upload maskable icon for PWA (6478b32d)
+*  show top 5 trending plugins in new tab in Extend > Plugins (b12e8d63)
+*  register service worker, #8126 (aa268d5e)
+*  add theme-color meta tag for browser address bar (5172d731)
+*  basic service worker, minimum requirement for for a2hs; see #8126 (f69697b3)
+*  option in ACP to configure notification/email delay for chats (5b427a0c)
+*  allow autocomplete to pass optional params to user.search (611f3c61)
+
+##### Bug Fixes
+
+* **deps:**
+  *  update dependency nodebb-theme-vanilla to v11.2.18 (#8697) (9bdef707)
+  *  update dependency nodebb-theme-slick to v1.2.34 (#8696) (3e2816ae)
+  *  bump persona (f17d42ed)
+  *  update dependency sanitize-html to v2 (1e5621c0)
+  *  update dependency nodebb-theme-persona to v10.2.39 (#8684) (d0010c40)
+  *  update dependency nodebb-theme-persona to v10.2.38 (#8683) (bb04f149)
+*  early button/anchor clicks do nothing (966d3f76)
+*  error on `reset -p` if plugin is not active (7f58e3ab)
+*  manifest test + remove duplicate test (bf3c1c08)
+*  typo in getCompatiblePlugins (07af6213)
+*  typo (54705cc4)
+*  manifest - use absolute URL for start_url (31528a52)
+*  prefer webmanifest extension over json (46800b66)
+*  update notification delay ACP help text (4c1e717b)
+*  #8681 change owner modal's search should check if user is banned (b6f2f0e5)
+* **openapi:**  test for new trending plugins in ACP (3fbddbe2)
+
+##### Refactors
+
+*  post edit (16039b11)
+
+#### v1.15.0-beta.26 (2020-09-25)
+
+##### Chores
+
+*  incrementing version number - v1.15.0-beta.26 (62c44095)
+*  up persona (ff8a833a)
+*  up persona (4a0f54ae)
+*  update changelog for v1.15.0-beta.25 (240a04b4)
+
+##### New Features
+
+*  upon plugin installation via ACP, check against nbbpm first (5ddf7022)
+*  up benchpress (8e88ccd6)
+
+##### Bug Fixes
+
+*  add img-responsive to post queue post items (f8032cd0)
+* **deps:**
+  *  update dependency json2csv to v5.0.3 (30aa7e83)
+  *  update dependency nodebb-theme-persona to v10.2.36 (#8680) (07172b6f)
+  *  update dependency nodebb-theme-persona to v10.2.35 (#8679) (68a5e7e3)
+  *  update dependency json2csv to v5.0.2 (5a2adb42)
+
+#### v1.15.0-beta.25 (2020-09-23)
+
+##### Chores
+
+*  incrementing version number - v1.15.0-beta.25 (1124d4ee)
+*  up persona (032e6001)
+*  update changelog for v1.15.0-beta.24 (72ab5ba1)
+
+##### New Features
+
+*  add row highlighting for popular and unread (2cd5f959)
+*  return to previous page and/or category after marking topic unread (48a8ec4a)
+*  add missing lang key (bd9b6c99)
+*  add number of posters to topic (83d4e7ef)
+
+##### Bug Fixes
+
+*  language key in reset password (2ad33058)
+*  issue where the last flag filter could not be removed (0fffe289)
+* **deps:**
+  *  update dependency nodebb-theme-persona to v10.2.33 (#8675) (abe83773)
+  *  update dependency nodebb-theme-persona to v10.2.31 (#8673) (80dbf97a)
+
+#### v1.15.0-beta.24 (2020-09-23)
+
+##### Chores
+
+*  incrementing version number - v1.15.0-beta.24 (23ba071d)
+*  up persona (5407bf48)
+*  up persona (4c2eab4b)
+*  up persona (91133b0f)
+*  up persona (bcac0805)
+*  up persona (9dc4db1f)
+*  up persona (ba70a1bf)
+*  update changelog for v1.15.0-beta.23 (e6ea208c)
+
+##### New Features
+
+*  hightlight matches in quick search (f2f3ba49)
+*  add loading indicator (d38c8722)
+*  allow plugins to override tags and tag counts (81595095)
+*  edit test (ccddbb15)
+*  add x-posts/x-votes keys (23de5613)
+
+##### Bug Fixes
+
+*  multiword match highlight (f8ef380b)
+*  tooltip placement on navbar search (82ab6cd3)
+*  rogue tooltip on navbar profile icon (683c01b0)
+*  #8580, @julianlam (445a840b)
+*  topic count on category page if filter is author (bbf6889e)
+*  match api when modifying ajaxify.data.deleted (int, not bool) (703ac1b6)
+*  lock/unlock toggle issue (9a7c3c68)
+*  #8665, trim email before checking validity (ac43cd8b)
+*  editing posts saving uncessary data (e72fe259)
+*  api spec (654d5830)
+*  #8640, add bookmarks to intFields (4f14dc7a)
+*  change user tooltip container to content (02a48e1c)
+*  auth tests (fe2dc310)
+*  #8656, rename /api/me to /api/self (af43f0e4)
+*  add user tooltips to body (047c4148)
+* **deps:**
+  *  update dependency nodebb-plugin-composer-default to v6.3.57 (#8672) (7ecac97a)
+  *  update dependency nodebb-theme-persona to v10.2.30 (#8671) (c8a75631)
+  *  update dependency nodebb-theme-persona to v10.2.24 (#8663) (72cd5f13)
+  *  update dependency postcss to v8.0.6 (#8657) (55921ccf)
+  *  update dependency validator to v13.1.17 (#8659) (01232090)
+  *  update dependency sharp to v0.26.1 (#8660) (b175d671)
+
+#### v1.15.0-beta.23 (2020-09-18)
+
+##### Chores
+
+*  incrementing version number - v1.15.0-beta.23 (61a04eb9)
+*  update changelog for v1.15.0-beta.22 (59ee74c2)
+
+##### New Features
+
+*  allow adding nested replies to a target component (ddc0ac37)
+*  hotkey "/" to open ACP search (43571bac)
+*  ctr-s for save on privileges page too (763cec31)
+*  ctrl-s now saves on settingsv1/v2 forms (80931423)
+*  single href (6669b23d)
+
+##### Bug Fixes
+
+* **deps:**  update dependency nodebb-widget-essentials to v4.1.2 (#8658) (dc0a4a49)
+
+#### v1.15.0-beta.22 (2020-09-18)
+
+##### Chores
+
+*  incrementing version number - v1.15.0-beta.22 (9c9329ee)
+*  update changelog for v1.15.0-beta.21 (8089542e)
+* **deps:**  update dependency lint-staged to v10.4.0 (2833624e)
+
+##### Bug Fixes
+
+*  tests (22cd2654)
+*  use correct topic count for category (220297d5)
+
+#### v1.15.0-beta.21 (2020-09-16)
+
+##### Chores
+
+*  incrementing version number - v1.15.0-beta.21 (966cdc13)
+*  update changelog for v1.15.0-beta.20 (1650f303)
+
+##### Bug Fixes
+
+*  clear old value on focus (42298fe6)
+* **deps:**
+  *  postcss and autoprefixer version incompatibility (70d3ad02)
+  *  update dependency nodebb-plugin-mentions to v2.10.0 (5ea172f9)
+  *  update dependency autoprefixer to v10 (60679481)
+
+#### v1.15.0-beta.20 (2020-09-15)
+
+##### Chores
+
+*  incrementing version number - v1.15.0-beta.20 (c8e57ec1)
+*  update changelog for v1.15.0-beta.19 (9cde5105)
+
+##### Bug Fixes
+
+*  skip elements if they dont have proper index (c9c9dd2f)
+
+#### v1.15.0-beta.19 (2020-09-15)
+
+##### Chores
+
+*  incrementing version number - v1.15.0-beta.19 (2eb7c284)
+*  update changelog for v1.15.0-beta.18 (b2ca9686)
+* **deps:**  update dependency eslint to v7.9.0 (b1d781e8)
+
+##### New Features
+
+*  allow passing in container to threadTools (7148be2f)
+
+##### Bug Fixes
+
+*  call to reskin (99f24c59)
+
+#### v1.15.0-beta.18 (2020-09-14)
+
+##### Chores
+
+*  incrementing version number - v1.15.0-beta.18 (e096791e)
+*  update changelog for v1.15.0-beta.17 (d6178158)
+
+##### New Features
+
+*  expose calculateTopicPostCount and getChildrenTree (43742437)
+
+##### Bug Fixes
+
+* **deps:**  bump theme versions (685633d0)
+*  move necro-post to be in-line with posts (44309ee6)
+*  tests, because redis is TOO FAST (4fca7938)
+
+##### Refactors
+
+*  expose new method for appending moderation note (29b357bc)
+
+#### v1.15.0-beta.17 (2020-09-14)
+
+##### Breaking Changes
+
+*  remove toolsVisible in post tools' menu [breaking] (7e7366be)
+
+##### Chores
+
+*  incrementing version number - v1.15.0-beta.17 (f1c28092)
+*  update changelog for v1.15.0-beta.16 (e08297ff)
+
+##### New Features
+
+*  allow custom req.query.filter on /unread /recent (de824007)
+*  fullname search (#8641) (4be693f2)
+*  sorted set lex test (9389749b)
+
+##### Bug Fixes
+
+* **deps:**
+  *  update dependency nodebb-plugin-composer-default to v6.3.56 (#8648) (8089387b)
+  *  update dependency nodebb-theme-persona to v10.2.22 (c5ca2609)
+  *  update dependency nodebb-theme-vanilla to v11.2.16 (8acdf3f6)
+  *  update dependency nodebb-theme-persona to v10.2.21 (ed0469b5)
+  *  update dependency nodebb-theme-vanilla to v11.2.15 (134ebba6)
+*  remove old test (5e8c3761)
+*  client side crash if there are no topics (a8e18fdb)
+*  #8418 (38d3982b)
+*  typo (08912361)
+
+#### v1.15.0-beta.16 (2020-09-11)
+
+##### Chores
+
+*  incrementing version number - v1.15.0-beta.16 (6043c9cb)
+*  update changelog for v1.15.0-beta.15 (f878b92c)
+
+##### New Features
+
+*  add topicIndex to category page (c1c617b3)
+
+##### Bug Fixes
+
+*  tests (65d049c6)
+*  check if unread_tids are followed (2d5bd153)
+*  openapi (e9094094)
+* **deps:**
+  *  update dependency nodebb-theme-vanilla to v11.2.14 (31635e3e)
+  *  update dependency nodebb-theme-persona to v10.2.20 (2a13e583)
+  *  update dependency mongodb to v3.6.2 (#8634) (4969c869)
+
+#### v1.15.0-beta.15 (2020-09-09)
+
+##### Chores
+
+*  incrementing version number - v1.15.0-beta.15 (10b94f9b)
+*  update changelog for v1.15.0-beta.14 (5e60d092)
+
+##### New Features
+
+*  up lavender/slick (34eb1bd2)
+*  switch to using topic/select component for merge (f6d56466)
+
+##### Bug Fixes
+
+* **deps:**
+  *  update dependency nodebb-theme-vanilla to v11.2.13 (#8633) (8137cdc2)
+  *  update dependency nodebb-theme-persona to v10.2.19 (#8632) (37e37c86)
+*  dont use hardcoded fontawesome icons for lock pin (632793b0)
+
+#### v1.15.0-beta.14 (2020-09-09)
+
+##### Chores
+
+*  incrementing version number - v1.15.0-beta.14 (6ca4b86f)
+*  update commitlint config (61a8c6f0)
+*  update changelog for v1.15.0-beta.13 (ca8d492b)
+
+##### New Features
+
+*  undo for posts move (762e9fe8)
+*  #8626, new move posts modal (5a40d26b)
+
+##### Bug Fixes
+
+*  #8629 and change undo timeout to 10 seconds (65d94a3b)
+*  alert_id selector (2bebdf01)
+*  use text-right (a78e1df9)
+* **deps:**
+  *  update dependency nodebb-theme-vanilla to v11.2.12 (#8628) (7ab87072)
+  *  update dependency nodebb-theme-persona to v10.2.18 (#8627) (2740655d)
+
+#### v1.15.0-beta.13 (2020-09-08)
+
+##### Chores
+
+*  incrementing version number - v1.15.0-beta.13 (bdd71c51)
+*  update changelog for v1.15.0-beta.12 (0a242605)
+* **deps:**
+  *  update dependency eslint to v7.8.1 (#8597) (39110276)
+  *  update dependency lint-staged to v10.3.0 (#8608) (dc1f1db9)
+
+##### New Features
+
+*  refactor app.js (5002e0f6)
+*  remove global RELATIVE_PATH (19c44861)
+*  remove app.template (3cd3b7a1)
+*  remove global window.templates (630bac2a)
+*  remove app.isConnected, use socket.connected (fddeb5c0)
+*  use const/let (6fc31df0)
+*  allow nbb to work with cloudflare rocket loader :rocket: (4d665955)
+*  move code (53a5f151)
+*  #8602, dont send emails to unconfirmed addresses (b6917b9d)
+*  add partials/footer/js.tpl (94da9fe5)
+*  add missing name to profile image upload (54b49725)
+*  add action:user.removeCoverPicture (b0a75922)
+*  add user data to action:user.removeUploadedPicture (962446a5)
+*  add userData to action:user.delete (9542ef12)
+*  force upgrade scripts for test (1b7ba2c8)
+*  replace relative urls to absolute before sending email notifs (1e5981c0)
+
+##### Bug Fixes
+
+* **deps:**
+  *  update dependency nodebb-theme-vanilla to v11.2.11 (#8624) (fd6259c8)
+  *  update dependency nodebb-theme-persona to v10.2.17 (#8623) (a1d310bd)
+  *  update dependency nodebb-theme-slick to v1.2.30 (#8620) (251ea79b)
+  *  update dependency nodebb-theme-persona to v10.2.16 (#8618) (0d85dc48)
+  *  update dependency nodebb-theme-vanilla to v11.2.10 (#8619) (b52301b1)
+  *  update dependency nodebb-theme-vanilla to v11.2.9 (#8616) (69373fde)
+  *  update dependency nodebb-theme-persona to v10.2.15 (#8614) (3c0540c1)
+  *  update dependency socket.io-redis to v5.4.0 (#8600) (5ba23f24)
+  *  update dependency nodebb-theme-vanilla to v11.2.8 (#8599) (97e3543e)
+  *  update dependency nodebb-theme-persona to v10.2.12 (#8598) (1bb0896e)
+*  remove lang keys, remove sounds menu (a34b685c)
+*  lavender version (8a752364)
+*  tests (e3a0b4b1)
+*  wider widget area (4bace773)
+*  bypass nbbpm for now (33c1bd5f)
+*  #8432, add CSP frame-ancestors (46ab2711)
+*  allow setting maximumAboutMeLength to 0 (4588e521)
+*  additional commit for CF rocket loader (a38784f5)
+*  stack trace (4031a8ca)
+*  #8604 (a2638976)
+*  don't toggle elements if there is no inputEl (57f67e2b)
+* **bug:**  #8611, custom route logic corrected (#8612) (64a457a4)
+
+#### v1.15.0-beta.12 (2020-09-03)
+
+##### Chores
+
+*  incrementing version number - v1.15.0-beta.12 (b852c9b7)
+*  update changelog for v1.15.0-beta.11 (f07ba866)
+
+##### Bug Fixes
+
+* **deps:**  update dependency nodebb-plugin-composer-default to v6.3.55 (#8606) (dfeb65bb)
+
+##### Refactors
+
+*  socket posts delete/restore/purge so tid is not necessary (#8607) (f743f920)
+
+#### v1.15.0-beta.11 (2020-09-02)
+
+##### Chores
+
+*  incrementing version number - v1.15.0-beta.11 (c1ce7391)
+*  update changelog for v1.15.0-beta.10 (9c34eced)
+
+##### New Features
+
+*  add client side action:flag.create (09de364e)
+
+#### v1.15.0-beta.10 (2020-09-01)
+
+##### Chores
+
+*  incrementing version number - v1.15.0-beta.10 (f252d4d7)
+*  update changelog for v1.15.0-beta.9 (affc7927)
+* **deps:**
+  *  update dependency mocha to v8.1.3 (#8588) (05efeff6)
+  *  update dependency eslint to v7.8.0 (#8594) (e1b98142)
+
+##### New Features
+
+*  additional sorting options for flags (0c203517)
+
+##### Bug Fixes
+
+* **deps:**  update dependency nodebb-plugin-markdown to v8.12.1 (27426c06)
+*  don't crash on outdated redis instances (896fe9d6)
+
+#### v1.15.0-beta.9 (2020-08-28)
+
+##### Chores
+
+*  incrementing version number - v1.15.0-beta.9 (8dc513da)
+*  update changelog for v1.15.0-beta.8 (3b960c3b)
+
+##### Bug Fixes
+
+*  update post-queue hook names (0e58d2b8)
+
+#### v1.15.0-beta.8 (2020-08-28)
+
+##### Chores
+
+*  incrementing version number - v1.15.0-beta.8 (34bb869c)
+*  update changelog for v1.15.0-beta.7 (e449ff9a)
+
+##### Bug Fixes
+
+*  accept/reject in post-queue instead of accept/delete (694f4b2b)
+
+#### v1.15.0-beta.7 (2020-08-28)
+
+##### Chores
+
+*  incrementing version number - v1.15.0-beta.7 (fd917b8e)
+*  update changelog for v1.15.0-beta.6 (a7f03b64)
+
+##### New Features
+
+*  new filter hook prior to post queue addition (8cc36de2)
+*  add replies to getPostSummaryByPids (a9dfc9a7)
+*  add reply count to getPostSummaryByPids (de0f4aad)
+
+##### Bug Fixes
+
+* **deps:**
+  *  update dependency nodebb-theme-vanilla to v11.2.5 (64f4179a)
+  *  update dependency nodebb-theme-persona to v10.2.10 (777419b2)
+*  new openapi def for replies addition (b5871275)
+
+#### v1.15.0-beta.6 (2020-08-27)
+
+##### Chores
+
+*  incrementing version number - v1.15.0-beta.6 (a9019cbe)
+*  update changelog for v1.15.0-beta.5 (0e90064e)
+* **deps:**  update dependency lint-staged to v10.2.13 (efc30e97)
+
+##### New Features
+
+*  theme work for #8580, closes #8580 (6e805c1b)
+
+##### Bug Fixes
+
+*  #8582 (9f9164a9)
+*  debug logging :dog: (fb3b4a02)
+*  ip-blacklist not working after #8580 (56101ae5)
+*  ip-blacklist not working after #8580 (c681b4b2)
+*  post-queue not working after #8580 (dc5bd760)
+*  #8411 missing language sources for ip-blacklist/post-queue (a93e1955)
+*  removed invalid options for the sendmail transport (#8576) (2b785628)
+
+##### Refactors
+
+*  ip-blacklist and post-queue language files (4dc6e64a)
+*  moved ip-blacklist and post-queue styles/tpls to themes (b6b94a56)
+
+#### v1.15.0-beta.5 (2020-08-26)
+
+##### Chores
+
+*  incrementing version number - v1.15.0-beta.5 (81e4c4df)
+*  update changelog for v1.15.0-beta.4 (6c4aed8c)
+* **deps:**  update dependency mocha to v8.1.2 (#8579) (c722b0e5)
+
+##### New Features
+
+*  allow undo of topic move (abb5e81d)
+*  added alert.timeoutfn (cd8e7963)
+*  sort dependencies alphabetically (a4dbbc37)
+
+##### Bug Fixes
+
+*  missing localisation for topic move error (bacee6b4)
+*  select all checkbox does not re-enable bulk actions button (5d60dce3)
+* **deps:**  update dependency sharp to v0.26.0 (#8578) (7ca967ee)
+
+#### v1.15.0-beta.4 (2020-08-25)
+
+##### Chores
+
+*  incrementing version number - v1.15.0-beta.4 (f2726a6d)
+*  update changelog for v1.15.0-beta.3 (11e2ccab)
+
+##### New Features
+
+*  up persona (af9f328c)
+
+##### Bug Fixes
+
+*  dupes in unread followed topics (55533b11)
+*  wrong data passed to getCategories (39f4bbaa)
+
+#### v1.15.0-beta.3 (2020-08-22)
+
+##### Chores
+
+*  incrementing version number - v1.15.0-beta.3 (39178c2d)
+*  update changelog for v1.15.0-beta.2 (d8a9f1c3)
+
+##### New Features
+
+*  banning a user will resolve their post flags (354e6ccc)
+
+##### Bug Fixes
+
+*  openapi spec (4f7cfd53)
+*  api spec (c4ad14cb)
+*  username, email history disappering if content was deleted (91d9333a)
+*  up composer (9fd37753)
+*  package-install clobbering scoped nodebb plugins (840cb510)
+
+#### v1.15.0-beta.2 (2020-08-21)
+
+##### Chores
+
+*  incrementing version number - v1.15.0-beta.2 (59b50d0a)
+*  update changelog for v1.15.0-beta.1 (aeca19d5)
+
+##### Bug Fixes
+
+*  empty "manage" menu showing in ACP (4b0cb26b)
+*  hide nodebb version in ACP for non-superadmins (cc268605)
+*  change how admin middlewares are exported (f00595b3)
+*  one less return, to appease codeclimate (ae68a254)
+*  inability to access /admin if not superadmin (03bd76de)
+*  #8560, fix old upgrade script (29e3ab24)
+*  use promises in privilege save (9cbe9389)
+*  overzealous click handler on flag list row (7a5daff4)
+*  +comment, -debug log (9608b44f)
+
+##### Refactors
+
+*  changed way middleware was exported (cf2f1e95)
+
+#### v1.15.0-beta.1 (2020-08-20)
+
+##### Chores
+
+*  incrementing version number - v1.15.0-beta.1 (4fa57fbb)
+
+##### New Features
+
+*  theme changes for #8571 (5415c01c)
+*  logic for bulk actions in flags list, #8571 (a3a22793)
+*  expose global/admin privileges to all routes (4737f937)
+
+##### Bug Fixes
+
+*  multiple alerts in the same millisecond overwrite each other (589216e7)
+*  reintroduce 20s delay for api tests (56393795)
+*  client-side error in flags/detail (b2271eb6)
+*  #8570 (7daba7dd)
+
+##### Tests
+
+* **openapi:**  missing commonprops addition (0dc55bbc)
+
+#### 1.14.3 (2020-07-08)
+
+##### Bug Fixes
+
+*  improper targetUid check during password change (c2477d9d)
+
+#### 1.14.2 (2020-07-15)
+
+##### Chores
+
+*  incrementing version number - v1.14.2 (1e4d683f)
+*  update changelog for v1.14.2 (488e69fd)
+*  up theme (63fb2ad7)
+*  incrementing version number - v1.14.2-beta.1 (9d1465d0)
+*  up theme (15aabfd3)
+*  up theme (599c5015)
+*  incrementing version number - v1.14.2-beta.0 (fca4ee31)
+*  incrementing version number - v1.14.1 (31203b16)
+*  update changelog for v1.14.1 (d4c16086)
+* **deps:**  update commitlint monorepo to v9.1.1 (0ca7e28a)
+
+##### New Features
+
+*  logic for flag note editing, #8499 (14417209)
+*  logic for flag note deletion, #8499 (f85a45c7)
+*  #8460, export groups members as csv (00d39fb3)
+*  pass connection options to socket.io-adapter-mongo (393f19b4)
+*  #8023, allow wildcard search for uid/email (3dcf5387)
+*  up composer (6235b31c)
+*  #8427, daily downvote limits (c513b88d)
+*  warn user if whitelisted tags are less than minTags (4adbf87c)
+
+##### Bug Fixes
+
+* **deps:**
+  *  update dependency nodebb-plugin-mentions to v2.9.1 (c54287fe)
+  *  update dependency nodebb-plugin-mentions to v2.9.0 (7730e7da)
+  *  update dependency nodebb-theme-persona to v10.1.62 (#8485) (4e9743ab)
+  *  update dependency nodebb-plugin-composer-default to v6.3.49 (#8479) (ab244ca6)
+*  #8499 (65240a17)
+*  #8500 (5e984d10)
+*  invalid session error modal during logout (2286ee2a)
+*  #8488 (b3a88331)
+*  category search in selector (46a66863)
+*  groups.updateCover (73ddf1cb)
+* **docs:**  bad changelog (60bf488f)
+
+##### Other Changes
+
+*  update changelog for v1.14.2" (e085c846)
+* flag.showModal on flag modal appearance (3379d65f)
+* NodeBB/NodeBB (2fba0a14)
+*  update changelog for v1.14.1" (26c74409)
+
+#### 1.14.1 (2020-07-08)
+
+##### Chores
+
+*  incrementing version number - v1.14.1 (31203b16)
+*  update changelog for v1.14.1 (d4c16086)
+*  incrementing version number - v1.14.1-beta.3 (e8ecef6b)
+*  incrementing version number - v1.14.1-beta.2 (b8d9b6b1)
+*  incrementing version number - v1.14.1-beta.1 (be85123a)
+*  incrementing version number - v1.14.1-beta.0 (c279875a)
+*  incrementing version number - v1.14.0 (bb73d6a4)
+*  update changelog for v1.14.0 (cffae0f1)
+
+##### New Features
+
+*  add tools to recent/unread (#8477) (658dd03b)
+*  fire new hooks on chat message editing (4f51838d)
+*  add back redis tests (bdc4d9e7)
+*  remove redis test (8461a179)
+*  use covered query (057b783d)
+*  add js-enabled.css to list of preloaded css files (da29b947)
+*  zscan (#8457) (723fe8e8)
+*  fix blocksCount not being returned on user profile (bd228d5e)
+
+##### Bug Fixes
+
+* **deps:**
+  *  update dependency nodebb-theme-persona to v10.1.60 (#8478) (14eafcb6)
+  *  bump nodebb-plugin-composer-default to 6.3.48 (943a344a)
+  *  update dependency nodebb-plugin-dbsearch to v4.1.1 (#8476) (9f06f12c)
+  *  update dependency nodebb-plugin-composer-default to v6.3.47 (#8473) (857900f1)
+  *  update dependency nodebb-plugin-dbsearch to v4.1.0 (#8471) (eb51cfd4)
+  *  update dependency nodebb-theme-persona to v10.1.59 (#8468) (ee38e05d)
+  *  update dependency nodebb-widget-essentials to v4.1.1 (#8466) (519e035d)
+  *  update dependency @nodebb/socket.io-adapter-mongo to v3.0.1 (#8464) (412ca4ae)
+*  #8474 (c2ca02df)
+*  show stack properly (7b04d897)
+*  editing chat messages does not go through content sanity checks (9a6b87d2)
+*  don't show blocked users under nested replies (d6c619cf)
+*  tests (87dd6c83)
+*  handle scan/zscan returning duplicate elements on redis (746222d6)
+*  #8467, fix url to merged topic in subfolder installs (9eb748b9)
+*  openapi (5f1865c0)
+*  openapi (65c0adc7)
+*  dont allow searching by email/ip if not privileged (ac6b571e)
+*  missing backgroundImage #8386 (fef04fcf)
+*  dont allow searching by ip/banned/flagged for regular users (02ac44cc)
+*  admin privileges client-side regression (f3441fce)
+*  only add blocksCount for self and admins (59a2ace6)
+*  tests (fd20e5c6)
+*  better changelog (f992af05)
+* **tests:**
+  *  another shot in the dark (8853cd1a)
+  *  shot in the dark (9458d90b)
+* **openapi:**  tests (c468942f)
+
+##### Other Changes
+
+*  update changelog for v1.14.1" (26c74409)
+* //github.com/NodeBB/NodeBB (0d9461b1)
+* //github.com/NodeBB/NodeBB (ace312e0)
+* post.changeOwner (b60e1cbf)
+
+##### Reverts
+
+*  bad changelog (a761e31f)
+
+#### 1.14.0 (2020-07-02)
+
+##### Chores
+
+*  incrementing version number - v1.14.0 (bb73d6a4)
+*  update changelog for v1.14.0 (cffae0f1)
+*  bump persona (19f9af94)
+*  latest translations and fallbacks (22879633)
+*  incrementing version number - v1.13.3 (ee583e80)
+*  bump persona (d2bd746c)
+*  incrementing version number - v1.13.2 (beafd613)
+* **deps:**
+  *  update dependency smtp-server to v3.7.0 (e80100b5)
+  *  update dependency eslint to v7.3.1 (#8417) (33492744)
+  *  update commitlint monorepo to v9 (569b7664)
+  *  update dependency lint-staged to v10.2.11 (157e7444)
+  *  update dependency lint-staged to v10.2.10 (102a6004)
+  *  update dependency mocha to v8 (#8393) (f4bace03)
+  *  update dependency eslint to v7.2.0 (cd1375cb)
+  *  update dependency eslint-plugin-import to v2.21.1 (4b577a52)
+  *  update dependency lint-staged to v10.2.9 (#8369) (124125f7)
+  *  update dependency lint-staged to v10.2.8 (331b1a85)
+  *  update dependency lint-staged to v10.2.7 (d1df0826)
+  *  update dependency mocha to v7.2.0 (ecaa9b76)
+  *  update dependency eslint to v7.1.0 (e62d892a)
+  *  update dependency lint-staged to v10.2.6 (78d562b3)
+  *  update dependency lint-staged to v10.2.4 (a26011e7)
+  *  update dependency eslint to v7 (28df9aba)
+  *  update dependency coveralls to v3.1.0 (5ed4a108)
+  *  pin dependency @apidevtools/swagger-parser to 9.0.1 (51eccef5)
+  *  update dependency husky to v4.2.5 (30a25983)
+  *  update dependency husky to v4.2.4 (0a650118)
+  *  update dependency lint-staged to v10.1.3 (a9e68639)
+  *  update dependency nyc to v15.0.1 (#8231) (a3789e28)
+  *  update dependency lint-staged to v10.1.2 (#8235) (e1919c90)
+  *  update dependency lint-staged to v10.1.1 (944a6f58)
+  *  update dependency lint-staged to v10.1.0 (30bd233b)
+  *  update dependency eslint-config-airbnb-base to v14.1.0 (811c3aee)
+  *  update dependency jsdom to v16.2.2 (c5a7242d)
+  *  update dependency eslint-plugin-import to v2.20.2 (b92c1600)
+  *  update dependency lint-staged to v10.0.10 (0ad4b556)
+  *  update dependency coveralls to v3.0.11 (14458087)
+  *  update dependency smtp-server to v3.6.0 (22681945)
+  *  update dependency mocha to v7.1.1 (#8215) (c5356541)
+  *  update dependency grunt to v1.1.0 (#8214) (b0864e7c)
+  *  update dependency husky to v4.2.3 (#8162) (776fe9d2)
+  *  update dependency lint-staged to v10.0.8 (#8180) (13d8f6f1)
+  *  update dependency eslint-plugin-import to v2.20.1 (#8081) (4cdb3131)
+  *  update dependency jsdom to v16.2.1 (#8165) (fbd95a50)
+  *  update dependency husky to v4.2.2 (#8160) (f4ed35c9)
+  *  update dependency jsdom to v16 (#8114) (1037de02)
+
+##### Documentation Changes
+
+*  updated changelog (146388aa)
+
+##### New Features
+
+*  polish for user blocks UX (6cb31791)
+*  #8450, next/prev link tags on /unread /recent (eb9704f8)
+*  allow flagging of user acounts from post tools menu (6931f29d)
+*  closes #8440, allow configuring max topic count (e09ab3dc)
+*  add missing translation key (bffb830d)
+*  #3783, min/max tags per category (c718b729)
+*  use tags partial instead of post_bar (0482fb29)
+*  hide elements if search element is a direct child of dropdown (4f6b6c56)
+*  increase wait (6aecc177)
+*  move export functions into child processes (8383992d)
+*  display stack trace on winston.error (e80379dc)
+*  show more relevant snippets (f70d1648)
+*  #8412 breadcrumbs for ip-blacklist/post queue/flags (35a06a84)
+*  show editor in post diffs if available (f909ed25)
+*  #8408 flags' quick assignment (d5af9769)
+*  bump themes, closes #8406 (cb5ba76b)
+*  allow post diffs to be restored, #8406 (58b3d608)
+*  add missing translation (3a80a165)
+*  up composer (96cb94dc)
+*  more search changes (6349fa03)
+*  more merge/search fixes (4b38533b)
+*  merge changes (bb3aa540)
+*  more search & merge fixes (5fd05dc9)
+*  merge improvements wip (c4bdeae0)
+*  #8387 expose global and admin privs to flags detail page (4acb3fb2)
+*  redirect /me to user profile (3be4d5f7)
+*  #8384 options to delete account, content, or both (4d60eac6)
+*  account content deletion, closes #8381 (67aca822)
+*  add missing language files for #8347 (656b391f)
+*  privileges for Admin Control Panel (#8355) (a82e9bd7)
+*  add buildHeaderAsync (#8367) (842b8abb)
+*  #8360 flag quick actions for delete/restore/purge (8ea16348)
+*  #8349, remove user posts from queue if user is deleted (5a2b5154)
+*  up plugins (5b009e07)
+*  add results into results container (9ffcb6f7)
+*  quick search changes (f12d448e)
+*  move quick search into search module (bb1a56f0)
+*  fix session mismatch errors by clearing cookie on logout (#8338) (5781a2dc)
+*  add getSortedSetMembers (0009f54e)
+*  add privilege give/rescind hooks (#8336) (ec5582b5)
+*  filter followed tids by category (f3afba61)
+*  use getSortedSetsMembers to load followed tids (1b9e8928)
+*  add batch size to cursors (a015af4a)
+*  up cache size (9600ede5)
+*  tweak intersection code, add tests (4ee3543e)
+*  change to contains to match scoped modules (6108064e)
+*  improve grunt restart/rebuild speed (cb662e15)
+*  don't overwrite req.query.lang if it exists (4263efa0)
+*  convert queries so they used indices directly (12c6bc2e)
+*  cookie SameSite property (ae2db423)
+*  if only one value is passed used faster function (2587112f)
+*  closes #8316, add more data to export profile (f0323b6c)
+*  throw error if uid is missing for update (1d3fa3bc)
+*  ignore mongodb playground file (a219285e)
+*  parse quick search tpl even if no results (765b8156)
+*  match hook property to topic property (0e58fa33)
+*  add methods for adding/removing tags from topics (bfad4572)
+*  write-api update, WIP (9fd5c439)
+*  closes #8308, edit post notif for watched topic posts (a73c755b)
+*  add null tests for sorted sets (edf9fe3b)
+*  Add hooks for user blocks (#8296) (c4545381)
+*  allow activating additional plugins for testing via config.json (a969c5ce)
+*  move plugin tests to separate file (3a23ddab)
+*  remove node14 for now (a72e4429)
+*  reduce infinite scroll area (3fcbd691)
+*  manifest.json improvements from #8126 (#8264) (6e5ebb61)
+*  show error if json is invalid (15345627)
+*  moved component specs into separate files (cd506557)
+*  added UserObject, UserObjectFull, Breadcrumb, Pagination component (64d79fe5)
+*  added some summary and descriptions (ae3e90d6)
+*  add some descriptions (442c018e)
+*  common schema (eade13f9)
+*  openapi component (1af5507a)
+*  add page query param to docs (9987813f)
+*  tag route doc (bbddaadf)
+*  local redoc view on development mode only (1136a369)
+*  added auto-generated, slimmed-down openapi 3.0 file for read api (7b155dab)
+*  add parent cids to body class (23571224)
+*  add 2 hooks for modifying privileges (d080c7b0)
+*  add user ip to admin/dev/info (5e91a67e)
+*  change option name (cba5b23e)
+*  add no-build to ./nodebb setup (476f6717)
+*  add awaitable socket.emit (4083a6e3)
+*  settings sorted list (#8170) (3c9689a5)
+*  guard against accidental ommision (79737c53)
+* **docs:**  updated changelog (87c1687d)
+* **openapi:**
+  *  merging openapi-test branch into master (8387178b)
+  *  move all commonprops out for commonprops component (65c78de6)
+  *  added template to commonprops (2425f453)
+
+##### Bug Fixes
+
+* **deps:**
+  *  update dependency nodebb-plugin-composer-default to v6.3.46 (5a713d85)
+  *  update dependency nodebb-plugin-mentions to v2.8.3 (#8449) (bbd85049)
+  *  update dependency nodebb-plugin-mentions to v2.8.0 (d40720f9)
+  *  update dependency nodebb-plugin-composer-default to v6.3.44 (#8436) (c1991abe)
+  *  update dependency winston to v3.3.3 (#8431) (6a8f54fd)
+  *  update dependency nodebb-theme-persona to v10.1.55 (#8434) (a860a793)
+  *  update dependency nodebb-theme-vanilla to v11.1.30 (#8435) (272b4992)
+  *  update dependency nodebb-theme-vanilla to v11.1.29 (#8429) (b5a68a44)
+  *  update dependency nodebb-theme-persona to v10.1.54 (#8428) (3ffb6fde)
+  *  update dependency winston to v3.3.2 (54310d69)
+  *  update dependency nodebb-plugin-spam-be-gone to v0.7.2 (11244348)
+  *  update dependency winston to v3.3.1 (#8421) (fd628570)
+  *  #8412 bump themes (365996e7)
+  *  bump persona/vanilla, closes #8408 (225cac18)
+  *  update dependency sharp to v0.25.4 (#8403) (3c3e1515)
+  *  update dependency nodebb-theme-vanilla to v11.1.25 (#8405) (90446365)
+  *  update dependency nodebb-theme-persona to v10.1.50 (#8404) (44273a64)
+  *  update dependency mongodb to v3.5.9 (#8402) (90570660)
+  *  update dependency nodebb-plugin-composer-default to v6.3.43 (78b7382c)
+  *  update dependency validator to v13.1.1 (#8397) (2ae68f9b)
+  *  update dependency validator to v13.1.0 (#8391) (ad6e3634)
+  *  update dependency nodebb-theme-vanilla to v11.1.24 (#8395) (eec03de8)
+  *  update dependency nodebb-theme-persona to v10.1.49 (#8394) (90846740)
+  *  update dependency postcss to v7.0.32 (87ce31d1)
+  *  update dependency nodebb-plugin-composer-default to v6.3.41 (dde830db)
+  *  update dependency nodebb-plugin-composer-default to v6.3.40 (#8388) (cf0f8f64)
+  *  bump themes, closes #8387 (e97a2b71)
+  *  bump themes (ccac6a35)
+  *  update dependency nodebb-theme-persona to v10.1.46 (#8382) (036e6ef5)
+  *  update dependency nodebb-theme-vanilla to v11.1.21 (#8383) (7caeb273)
+  *  update dependency nodebb-plugin-composer-default to v6.3.39 (aeefc60b)
+  *  update dependency nodebb-plugin-composer-default to v6.3.37 (7f6ff0b1)
+  *  update dependency nodebb-plugin-composer-default to v6.3.36 (6b2ea077)
+  *  update dependency nodebb-plugin-composer-default to v6.3.35 (2d582df7)
+  *  update dependency nodebb-theme-persona to v10.1.45 (#8372) (771ea194)
+  *  update dependency nodebb-theme-vanilla to v11.1.20 (#8373) (f8ee981b)
+  *  update dependency socket.io-redis to v5.3.0 (#8370) (d2463bb4)
+  *  update dependency nodebb-theme-vanilla to v11.1.19 (f6ad9605)
+  *  update dependency nodebb-theme-persona to v10.1.44 (cb28e6cf)
+  *  update dependency nodebb-plugin-composer-default to v6.3.34 (#8357) (d7ab0894)
+  *  update dependency nodebb-plugin-composer-default to v6.3.33 (c4047179)
+  *  update dependency nodebb-plugin-spam-be-gone to v0.7.1 (27ab36ac)
+  *  update dependency nodebb-theme-persona to v10.1.43 (#8343) (dabff972)
+  *  update dependency mongodb to v3.5.8 (#8342) (8224127f)
+  *  update dependency nodebb-theme-persona to v10.1.40 (#8332) (a20af6e2)
+  *  update dependency nodebb-plugin-spam-be-gone to v0.7.0 (cc206b4d)
+  *  bump composer-default (827d42a9)
+  *  bump composer-default (a665881b)
+  *  update dependency nodebb-plugin-composer-default to v6.3.29 (bf8a2c2e)
+  *  update dependency postcss to v7.0.30 (#8288) (a532e2bb)
+  *  update dependency sharp to v0.25.3 (0437ecc2)
+  *  update dependency nodebb-plugin-composer-default to v6.3.28 (#8309) (f246057a)
+  *  update dependency nodebb-plugin-composer-default to v6.3.27 (#8307) (6d57d844)
+  *  #8298 bump persona (158d9231)
+  *  update dependency nodebb-plugin-composer-default to v6.3.25 (89d17647)
+  *  update dependency jquery to v3.5.1 [security] (#8281) (a69f0b29)
+  *  update dependency nodebb-rewards-essentials to v0.1.3 (#8289) (919034a7)
+  *  update dependency mongodb to v3.5.7 (#8279) (25d509c4)
+  *  actually, swagger-parser is a dev dependency (d09c6ae0)
+  *  missing @apidevtools/swagger-parser (f1720735)
+  *  update dependency nodebb-theme-persona to v10.1.37 (#8258) (b0c30ceb)
+  *  update dependency archiver to v4 (28777f67)
+  *  update dependency mongodb to v3.5.6 (#8256) (49236067)
+  *  bump dependencies (#8239) (e68156e1)
+  *  update dependency jsesc to v3.0.1 (#8243) (92b55ef5)
+  *  update dependency jsesc to v3 (bb70cebb)
+  *  update dependency pg to v8 (#8227) (ac98775f)
+  *  update dependency validator to v13 (f497ee62)
+  *  update dependency sharp to v0.25.2 (#8220) (dd660c87)
+  *  bump markdown (ee6cb412)
+  *  update dependency mongodb to v3.5.5 (#8205) (5535c50c)
+  *  update dependency sitemap to v6 (#8198) (2052f14c)
+  *  update dependency nodebb-plugin-composer-default to v6.3.23 (6d98d5a1)
+  *  update dependency sharp to v0.25.1 (#8199) (21e91c91)
+  *  update dependency nodebb-plugin-composer-default to v6.3.22 (#8193) (e01f05e3)
+  *  update dependency nodebb-theme-slick to v1.2.29 (#8177) (9daa21ff)
+  *  update dependency nodebb-theme-vanilla to v11.1.16 (#8178) (7d6a983b)
+  *  update dependency nodebb-theme-persona to v10.1.35 (#8176) (3acc24b0)
+  *  update dependency sharp to v0.24.1 (#8164) (7cc63f7d)
+  *  update dependency mongodb to v3.5.3 (#8161) (4b907137)
+  *  update dependency nodebb-widget-essentials to v4.1.0 (#8159) (a5f3c2a2)
+  *  update dependency request to v2.88.2 (#8158) (7fde180a)
+  *  update dependency redis to v3 (#8152) (ef964b11)
+  *  update dependency rimraf to v3.0.2 (#8153) (d8efc6b6)
+*  don't show in unreplied if score is null (fd400a00)
+*  lint (0d0b9513)
+*  upgrade script to unescape navigation titles (37b6b8fd)
+*  test (f0ce309d)
+*  show controls @julianlam (023de94e)
+*  #8437, #8433 (e53a18f2)
+*  copy settings showing empty category selection (ed4b5caf)
+*  don't init autocomplete if user doesn't have privs (8482a54a)
+*  only allow valid uids (00d8ce26)
+*  tests (f03ca086)
+*  vulnerability in cover and admin uploads (#8419) (48b41deb)
+*  reverse tabnabbing exploit in post images (040e6a9a)
+*  follower count going out of sync with real follower count (2bcf7f72)
+*  test lock for user create (#8415) (bef37e27)
+*  add mising timestamp (f0526bff)
+*  ban (bfd7eafe)
+*  remove use of 'hidden' class in navbar toggling (5a367ecb)
+*  bug where category privs page thought it was on admin (2515aa77)
+*  #8410 (b3115ea8)
+*  tests breaking due to #8406 (d5578c99)
+*  add missing translations (42466d3c)
+*  #8401, #8237 (7ed1a014)
+*  add timestamp to initial username history (18d89239)
+*  crash in export posts if post content is undefined (53a9517d)
+*  messaging unread (0041c024)
+*  whitespace (a024cc13)
+*  typo (0595e710)
+*  #8392, clear group member cache when group is renamed (89b01024)
+*  return false (8591f5d2)
+*  language (a255c8f6)
+*  #8386, use backgroundImage everywhere (8627bee5)
+*  prevent logout form from submitting (d92032da)
+*  missing space in ACP menu dropdown (daeceb45)
+*  #8385 (942cc4b1)
+*  acp language keys from #8347 not updated in tx config (9ae7fd3e)
+*  #8363, dont break history (50703db8)
+*  #8363, go to hash when entering topic (0c265a41)
+*  #8374, revert event delete (30cc83c0)
+*  new language tag for select_tags (09184f40)
+*  remove duplicate link to manage/tags in settings/tags (260a482c)
+*  tests (3a078f59)
+*  handle search tag permission as well (1b5d5425)
+*  checking correct permissions for user search (#8371) (f6b92d24)
+*  change event name so it doesnt trigger complete event (7786187e)
+*  clear error log before checking (75b3a81d)
+*  #8323, let admins send validation emails without timeout (e603ebc0)
+*  #8352, remove webfonts (#8354) (de7ec47f)
+*  more tests (da90fd56)
+*  tests due to 0633ad327 (98dffa3a)
+*  retry failed setObject calls (2c9e8657)
+*  acp menu items (0633ad32)
+*  re-jigged tags acp pages (a83f4259)
+*  move checks into timeout (47d73a2a)
+*  #8339, add missing translation (a9315aee)
+*  don't explode if server sends `checkSession` (84c20f91)
+*  eliminate unnecessary try..catch (f0e59c14)
+*  test breakages from 8d995d1eb609837e4e6e4c77cd855766830378fa (a66fe013)
+*  #8320, dont load moderators separately for each category (0a31e3e6)
+*  show stack trace on startup errors (11bb6abb)
+*  don't trigger quick search if val doesn't change (d6c2764f)
+*  prevent duplicate search triggers (6f78113e)
+*  user faster method if sorting by smallest set (3ec05eea)
+*  add txt to list of default allowed file extensions (01bff2ae)
+*  search post snipets incase content is plain text (ada45a34)
+*  derp includes (d484731d)
+*  another test fix (f2907908)
+*  tests (feb748a4)
+*  tests on redis (7a801aba)
+*  tests, handle no sessions (8bf980cb)
+*  #8318, clean expired sessions on login and get (a0d76ff0)
+*  tests (a032e12b)
+*  #8317 (81e33b93)
+*  #8142 invalid session warning if server-side session destroyed (526b3cd9)
+*  check privileges before exporting post/topic data (5fd81c5c)
+*  exporting posts (dfae664e)
+*  undefined uid when downloading posts (bdda0222)
+*  #8311, fix allowUserHomePage value (1ba6929c)
+*  dont crash if topic is null (e20ad5c5)
+*  if category in selector has url use it (1f992cf3)
+*  convert cids to string for comparison (c47a1c4d)
+*  missing await (97c086ab)
+*  add missing schema item (4e14cb57)
+*  category selector disabled categories (337be368)
+*  #8305, don't use null values (6a5e86dc)
+*  #8302, send string to writeFileSync (d09bd2cf)
+*  winston showing json object (7d081843)
+*  sortable topics even if only 1 pinned topic (6765de3d)
+*  #8298, use class name added by jQueryUI instead (dd2bc189)
+*  topic search shortcut for macs (f2c725c6)
+*  #8297, uids.length is different than topics.length (0431d75f)
+*  #8297 guest handles shown in category.tpl (fcb81cb8)
+*  only add to set if numRecentReplies>0 (16a98eaf)
+*  #8293, don't show error if there are no self messages (be305410)
+*  failing tests @julianlam (ecd622fd)
+*  #3321, run plugin tests for installed plugins (a6bb9f43)
+*  remove deprecated mocha.opts (3d0db963)
+*  spec (84383d39)
+*  #8290, if there are no filters go to ?reset=1 (9839346e)
+*  #8283, update gdpr link again (2d076344)
+*  add missing await (4f1128fd)
+*  #8287, dont readd user after deletion (9d153fd3)
+*  missing await (4d6b2ec3)
+*  #8286, rescind notif when its resolved/rejected (0391856d)
+*  #8284, parse ToS on register (0ca84bd9)
+*  #8283, point to official site (17d664e0)
+*  jquery xhtml violations (275e837b)
+* #8274 Don't escape HTML in manage users (#8275) (4855f1de)
+*  crash in topic controller (0c7c70ed)
+*  crash when res.locals.linkTags is undefined (7cab2b0f)
+*  #8272 user link in digest email (e80b8101)
+*  tag of /api/unread/total (9ffdab02)
+*  response hook logic (5a1c6ee7)
+*  remove upload picture test (avatars) (6edf02d4)
+*  remove tests related to group covers, as route is gone (442fe65f)
+*  #8269, return array of topics from hook (4eafe0f0)
+*  remove dead picture upload code #8260 (ef52461f)
+*  path.resolve to logs file (5bcaf715)
+*  only trigger infinitescroll on scroll end (ba6d3fd3)
+*  wrong data returned in available.groups (c7ea84a2)
+*  no focus on find user modal (1b425ef1)
+*  accidental fp precision on flag and acp dash graphs (bcbf98aa)
+*  #8232, unresolvable session mismatch on register cancel (f2f6fbf1)
+*  pin jquery to 3.4.1, #8252 (e440d617)
+*  #8249, don't send move notifications for deleted posts/topics (d77036db)
+*  missing descriptions for common properties (7b31fb34)
+*  some definitions in read API spec (03739b6f)
+*  tagged all routes in read api spec (455d42bc)
+*  override ACAO header for read API spec file (240d9091)
+*  throw error if topic does not exist (59cf0e80)
+*  hookname (e93578b8)
+*  #8230, add hook getUserDataByUserSlug (0d1b5a7f)
+*  ignore case for group details route (15d6975e)
+*  lint (740e598a)
+*  lint (8e23dec8)
+*  #8221, fix parent selection (08031730)
+*  invite properly (071506eb)
+*  admins not seeing invite button (8f4b99a4)
+*  #8217, add missing lang key (0b5fac75)
+*  #8206 first message in chat has false `newSet` (93acd139)
+*  #8203, fix user invites refreshing page (2f9c7c62)
+*  #8202, filter non-existing users in search by uid (f07f4f8e)
+*  notification bodyShort truncated if there is a comma in topic title (266061c3)
+*  hsts max-age missing translation (b67af70d)
+*  call next (80f1bcad)
+*  try travis fix again (05bee629)
+*  try fixing psql on travis (bc9e92a1)
+*  dont let regular users see other users watched categories (cf6eadb9)
+*  also fix updating bookmark if sorting is newest_to_oldest (6e5de39b)
+*  #8188, fix bookmark if sorting is newest_to_oldest (32ada7c4)
+*  duplicate ID + label (ac241fb8)
+*  #8184 global mods unable to revoke other user sessions (f0db240a)
+*  return null if field does not exist (e72a29b3)
+*  #8179, limit length of location/website/fullname, check grouptitle (14e78667)
+*  tag key (32636755)
+*  #8175 (bc93b567)
+*  #8168 re-allowing slashes in homePageRoute (667608a0)
+*  tweak to session validation in addHeaders (eddbd868)
+*  only call clearCookie for logged in users (630f5d5b)
+*  #6422, update deleted/restored messages (06703408)
+*  #8163, prevent account deletion (4d0636f8)
+*  register (5a0c7c14)
+*  #8157, update recent tid when post is moved (e7495440)
+*  tests (b73aa84d)
+*  move start/stop every iteration (dd3893b1)
+*  #8154, move start/stop every iteration (300c04ce)
+*  #8154, respect stop (690bb69d)
+*  #8156 dont allow loading members from hidden groups (f23bc347)
+*  #8155, don't validate name on update if groupName didn't change (03a02e5d)
+*  return correct number of suggested topics (236e1e68)
+*  #8151, don't crash if taskbar doesn't have element (2e794801)
+*  logic for determining dailyStats hour vars (398f0120)
+*  fix daily analytics being one day off (9ecdb92f)
+*  remove debug line (0b9ad416)
+*  no decimal places for category analytics (14655f87)
+*  #8142, broken site if no server-side session (#8148) (d6e3f3f0)
+*  #8144 pluginHooks in maintenance mode middleware (0885ec68)
+* **openapi:**
+  *  tests for #8412 (4cae893f)
+  *  api change for #8387 (6a969442)
+  *  schema for new flags api (a0e243ee)
+  *  broken tests (45dfeeb0)
+  *  v14 test fix (23a0b8c5)
+  *  remove account and group upload routes (d342a28c)
+  *  more fleshing out (058a15db)
+  *  fleshed out admin routes (bae88e08)
+  *  added some descriptions (ab4bd7e1)
+  *  added PostsObject component (2395d2be)
+  *  finished moving all category objects out (23dd2727)
+  *  changed some descriptions (c939f8c6)
+  *  added CategoryObject component (55d0a9ff)
+  *  removed repeated breadcrumb blocks in favour of $ref (646fac1e)
+  *  remove all repeated pagination blocks in favour of (ac579f9d)
+  *  removed warning for category mods route (1cf62095)
+  *  normalising the file for programmatic updates (3a5c6e07)
+* **style:**
+  *  more switch..case (6b1d1acb)
+  *  switch..case (922d49be)
+  *  enforcing "better" indentation for switch..case (d135b6f7)
+* **docs:**  added titles to all routes (aa4ae78b)
+
+##### Other Changes
+
+* id, category fields (2355d9d5)
+* //github.com/NodeBB/NodeBB (c3c8b19a)
+* //github.com/NodeBB/NodeBB (0ddfb6b0)
+* //github.com/NodeBB/NodeBB (d1c1cb2c)
+* //github.com/NodeBB/NodeBB (79a7f892)
+* user.getFields to match topic/posts (a680a95e)
+* //github.com/NodeBB/NodeBB (b459592a)
+* //github.com/NodeBB/NodeBB (066b442e)
+* //github.com/NodeBB/NodeBB (fd6bf0c9)
+* //github.com/NodeBB/NodeBB (c1d8b9bb)
+* middleware.renderHeader (2727f472)
+* //github.com/NodeBB/NodeBB (69a87933)
+* uploadFile (7f24200c)
+*  #8142 invalid session warning if server-side session destroyed" (e327d124)
+*  ''}) (2a00b0e9)
+* //github.com/NodeBB/NodeBB (8c8cdc99)
+* categories.getRecentTopicReplies (aad0880f)
+*  #8298 (2e57d8ac)
+* post.updatePostVoteCount (b25b51bd)
+* //github.com/NodeBB/NodeBB (5e140454)
+* categories.updateRecentTid (6c59683b)
+* categories.updateRecentTid (51933c1f)
+* router.page, dep. filter variant (0053e779)
+* flags as well (5ebcdb18)
+*  crash when res.locals.linkTags is undefined" (fe03effe)
+* //github.com/NodeBB/NodeBB (87a6ff0d)
+*  cnpm and pnpm (#8222) (e6a1741c)
+* //github.com/NodeBB/NodeBB (7ae76477)
+*  openapi component" (683e5851)
+*  override ACAO header for read API spec file" (c82a2637)
+* password.change (00e299e9)
+* topic.tools.load (5aa76cdf)
+*  #8154, move start/stop every iteration" (4abe5eb7)
+* **deps:**  update dependency nodebb-plugin-mentions to v2.8.0" (5c7d37c0)
+
+##### Refactors
+
+*  make code climate happier? (0d112b36)
+*  shorter code (af790e3f)
+*  shorter code (e8f0da6e)
+*  change name to privileges to match other apis (2100a03c)
+*  making rendering of header and footer async functions (023942da)
+*  remove general menu from ACP (#8347) (a51fff8b)
+*  use getSortedSetMembers (7d484fc0)
+*  src/flags.js because codeclimate (cf00cda0)
+*  flags detail page (8d995d1e)
+*  move code (3b6d57e4)
+*  remove console.log (40b5cbab)
+*  shorter function (7e429884)
+*  match core field name pinned (478ed6c1)
+*  getUsersCSV to use batch lib (1efb238a)
+*  reorganized socket.io admin modules (e1c6c3b2)
+
+##### Reverts
+
+*  bad changelog (a761e31f)
+
 #### 1.13.3 (2020-05-08)
 
 ##### Chores

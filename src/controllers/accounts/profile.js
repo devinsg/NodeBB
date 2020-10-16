@@ -6,7 +6,6 @@ const db = require('../../database');
 const user = require('../../user');
 const posts = require('../../posts');
 const categories = require('../../categories');
-const plugins = require('../../plugins');
 const meta = require('../../meta');
 const accountHelpers = require('./helpers');
 const helpers = require('../helpers');
@@ -58,8 +57,7 @@ profileController.get = async function (req, res, next) {
 	userData.selectedGroup = userData.groups.filter(group => group && userData.groupTitleArray.includes(group.name))
 		.sort((a, b) => userData.groupTitleArray.indexOf(a.name) - userData.groupTitleArray.indexOf(b.name));
 
-	const results = await plugins.fireHook('filter:user.account', { userData: userData, uid: req.uid });
-	res.render('account/profile', results.userData);
+	res.render('account/profile', userData);
 };
 
 async function incrementProfileViews(req, userData) {
@@ -84,9 +82,23 @@ async function getBestPosts(callerUid, userData) {
 async function getPosts(callerUid, userData, setSuffix) {
 	const cids = await categories.getCidsByPrivilege('categories:cid', callerUid, 'topics:read');
 	const keys = cids.map(c => 'cid:' + c + ':uid:' + userData.uid + ':' + setSuffix);
-	const pids = await db.getSortedSetRevRange(keys, 0, 9);
-	const postData = await posts.getPostSummaryByPids(pids, callerUid, { stripTags: false });
-	return postData.filter(p => p && !p.deleted && p.topic && !p.topic.deleted);
+	let hasMorePosts = true;
+	let start = 0;
+	const count = 10;
+	const postData = [];
+	do {
+		/* eslint-disable no-await-in-loop */
+		const pids = await db.getSortedSetRevRange(keys, start, start + count - 1);
+		if (!pids.length || pids.length < count) {
+			hasMorePosts = false;
+		}
+		if (pids.length) {
+			const p = await posts.getPostSummaryByPids(pids, callerUid, { stripTags: false });
+			postData.push(...p.filter(p => p && !p.deleted && p.topic && !p.topic.deleted));
+		}
+		start += count;
+	} while (postData.length < count && hasMorePosts);
+	return postData.slice(0, count);
 }
 
 function addMetaTags(res, userData) {

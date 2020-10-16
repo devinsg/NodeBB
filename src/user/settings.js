@@ -59,7 +59,7 @@ module.exports = function (User) {
 		settings.restrictChat = parseInt(getSetting(settings, 'restrictChat', 0), 10) === 1;
 		settings.topicSearchEnabled = parseInt(getSetting(settings, 'topicSearchEnabled', 0), 10) === 1;
 		settings.bootswatchSkin = validator.escape(String(settings.bootswatchSkin || ''));
-		settings.homePageRoute = validator.escape(String(settings.homePageRoute || '')).replace('&#x2F;', '/');
+		settings.homePageRoute = validator.escape(String(settings.homePageRoute || '')).replace(/&#x2F;/g, '/');
 		settings.scrollToMyPost = parseInt(getSetting(settings, 'scrollToMyPost', 1), 10) === 1;
 		settings.categoryWatchState = getSetting(settings, 'categoryWatchState', 'notwatching');
 
@@ -118,9 +118,6 @@ module.exports = function (User) {
 			topicSearchEnabled: data.topicSearchEnabled,
 			homePageRoute: ((data.homePageRoute === 'custom' ? data.homePageCustom : data.homePageRoute) || '').replace(/^\//, ''),
 			scrollToMyPost: data.scrollToMyPost,
-			notificationSound: data.notificationSound,
-			incomingChatSound: data.incomingChatSound,
-			outgoingChatSound: data.outgoingChatSound,
 			upvoteNotifFreq: data.upvoteNotifFreq,
 			bootswatchSkin: data.bootswatchSkin,
 			categoryWatchState: data.categoryWatchState,

@@ -7,7 +7,8 @@ define('forum/topic/postTools', [
 	'components',
 	'translator',
 	'forum/topic/votes',
-], function (share, navigator, components, translator, votes) {
+	'api',
+], function (share, navigator, components, translator, votes, api) {
 	var PostTools = {};
 
 	var staleReplyAnyway = false;
@@ -108,11 +109,11 @@ define('forum/topic/postTools', [
 		});
 
 		postContainer.on('click', '[component="post/upvote"]', function () {
-			return votes.toggleVote($(this), '.upvoted', 'posts.upvote');
+			return votes.toggleVote($(this), '.upvoted', 1);
 		});
 
 		postContainer.on('click', '[component="post/downvote"]', function () {
-			return votes.toggleVote($(this), '.downvoted', 'posts.downvote');
+			return votes.toggleVote($(this), '.downvoted', -1);
 		});
 
 		postContainer.on('click', '[component="post/vote-count"]', function () {
@@ -125,6 +126,16 @@ define('forum/topic/postTools', [
 				flags.showFlagModal({
 					type: 'post',
 					id: pid,
+				});
+			});
+		});
+
+		postContainer.on('click', '[component="post/flagUser"]', function () {
+			var uid = getData($(this), 'data-uid');
+			require(['flags'], function (flags) {
+				flags.showFlagModal({
+					type: 'user',
+					id: uid,
 				});
 			});
 		});
@@ -156,7 +167,7 @@ define('forum/topic/postTools', [
 			var timestamp = parseInt(getData(btn, 'data-timestamp'), 10);
 			var postDeleteDuration = parseInt(ajaxify.data.postDeleteDuration, 10);
 			if (checkDuration(postDeleteDuration, timestamp, 'post-delete-duration-expired')) {
-				togglePostDelete($(this), tid);
+				togglePostDelete($(this));
 			}
 		});
 
@@ -193,11 +204,11 @@ define('forum/topic/postTools', [
 		}
 
 		postContainer.on('click', '[component="post/restore"]', function () {
-			togglePostDelete($(this), tid);
+			togglePostDelete($(this));
 		});
 
 		postContainer.on('click', '[component="post/purge"]', function () {
-			purgePost($(this), tid);
+			purgePost($(this));
 		});
 
 		postContainer.on('click', '[component="post/move"]', function () {
@@ -325,17 +336,9 @@ define('forum/topic/postTools', [
 	}
 
 	function bookmarkPost(button, pid) {
-		var method = button.attr('data-bookmarked') === 'false' ? 'posts.bookmark' : 'posts.unbookmark';
+		var method = button.attr('data-bookmarked') === 'false' ? 'put' : 'del';
 
-		socket.emit(method, {
-			pid: pid,
-			room_id: 'topic_' + ajaxify.data.tid,
-		}, function (err) {
-			if (err) {
-				app.alertError(err.message);
-			}
-		});
-
+		api[method](`/posts/${pid}/bookmark`, undefined, undefined, 'default');
 		return false;
 	}
 
@@ -352,7 +355,14 @@ define('forum/topic/postTools', [
 		}
 
 		if (post.length) {
-			slug = utils.slugify(post.attr('data-username'), true);
+			slug = post.attr('data-userslug');
+			if (!slug) {
+				if (post.attr('data-uid') !== '0') {
+					slug = '[[global:former_user]]';
+				} else {
+					slug = '[[global:guest]]';
+				}
+			}
 		}
 		if (post.length && post.attr('data-uid') !== '0') {
 			slug = '@' + slug;
@@ -361,33 +371,28 @@ define('forum/topic/postTools', [
 		return slug;
 	}
 
-	function togglePostDelete(button, tid) {
+	function togglePostDelete(button) {
 		var pid = getData(button, 'data-pid');
 		var postEl = components.get('post', 'pid', pid);
 		var action = !postEl.hasClass('deleted') ? 'delete' : 'restore';
 
-		postAction(action, pid, tid);
+		postAction(action, pid);
 	}
 
-	function purgePost(button, tid) {
-		postAction('purge', getData(button, 'data-pid'), tid);
+	function purgePost(button) {
+		postAction('purge', getData(button, 'data-pid'));
 	}
 
-	function postAction(action, pid, tid) {
+	function postAction(action, pid) {
 		translator.translate('[[topic:post_' + action + '_confirm]]', function (msg) {
 			bootbox.confirm(msg, function (confirm) {
 				if (!confirm) {
 					return;
 				}
 
-				socket.emit('posts.' + action, {
-					pid: pid,
-					tid: tid,
-				}, function (err) {
-					if (err) {
-						app.alertError(err.message);
-					}
-				});
+				const route = action === 'purge' ? '' : '/state';
+				const method = action === 'restore' ? 'put' : 'del';
+				api[method](`/posts/${pid}${route}`, undefined, undefined, 'default');
 			});
 		});
 	}

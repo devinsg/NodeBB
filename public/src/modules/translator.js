@@ -2,7 +2,7 @@
 
 (function (factory) {
 	function loadClient(language, namespace) {
-		return Promise.resolve(jQuery.getJSON(config.relative_path + '/assets/language/' + language + '/' + namespace + '.json?' + config['cache-buster']));
+		return Promise.resolve(jQuery.getJSON([config.assetBaseUrl, 'language', language, namespace].join('/') + '.json?' + config['cache-buster']));
 	}
 	var warn = function () { console.warn.apply(console, arguments); };
 	if (typeof define === 'function' && define.amd) {
@@ -278,7 +278,7 @@
 			}
 
 			if (namespace && !key) {
-				warn('Missing key in translation token "' + name + '"');
+				warn('Missing key in translation token "' + name + '" for language "' + self.lang + '"');
 				return Promise.resolve('[[' + namespace + ']]');
 			}
 
@@ -286,7 +286,7 @@
 			return translation.then(function (translated) {
 				// check if the translation is missing first
 				if (!translated) {
-					warn('Missing translation "' + name + '"');
+					warn('Missing translation "' + name + '" for language "' + self.lang + '"');
 					return backup || key;
 				}
 
@@ -605,7 +605,7 @@
 				}
 
 				var originalSettings = assign({}, jQuery.timeago.settings.strings);
-				jQuery.getScript(config.relative_path + '/assets/vendor/jquery/timeago/locales/jquery.timeago.' + languageCode + '-short.js').done(function () {
+				adaptor.switchTimeagoLanguage(languageCode + '-short', function () {
 					adaptor.timeagoShort = assign({}, jQuery.timeago.settings.strings);
 					jQuery.timeago.settings.strings = assign({}, originalSettings);
 					toggle();
@@ -615,12 +615,16 @@
 			}
 		},
 
-		switchTimeagoLanguage: function switchTimeagoLanguage(callback) {
+		switchTimeagoLanguage: function switchTimeagoLanguage(langCode, callback) {
 			// Delete the cached shorthand strings if present
 			delete adaptor.timeagoShort;
 
-			var languageCode = utils.userLangToTimeagoCode(config.userLang);
-			jQuery.getScript(config.relative_path + '/assets/vendor/jquery/timeago/locales/jquery.timeago.' + languageCode + '.js').done(callback);
+			var stringsModule = 'timeago/locales/jquery.timeago.' + langCode;
+			// without undef, requirejs won't load the strings a second time
+			require.undef(stringsModule);
+			require([stringsModule], function () {
+				callback();
+			});
 		},
 
 		prepareDOM: function prepareDOM() {

@@ -4,24 +4,16 @@ define('forum/category', [
 	'forum/infinitescroll',
 	'share',
 	'navigator',
-	'forum/category/tools',
 	'topicList',
 	'sort',
-], function (infinitescroll, share, navigator, categoryTools, topicList, sort) {
+], function (infinitescroll, share, navigator, topicList, sort) {
 	var Category = {};
 
 	$(window).on('action:ajaxify.start', function (ev, data) {
 		if (!String(data.url).startsWith('category/')) {
 			navigator.disable();
-
-			removeListeners();
 		}
 	});
-
-	function removeListeners() {
-		categoryTools.removeListeners();
-		topicList.removeListeners();
-	}
 
 	Category.init = function () {
 		var	cid = ajaxify.data.cid;
@@ -29,8 +21,6 @@ define('forum/category', [
 		app.enterRoom('category_' + cid);
 
 		share.addShareHandlers(ajaxify.data.name);
-
-		categoryTools.init(cid);
 
 		topicList.init('category', loadTopicsAfter);
 
@@ -51,10 +41,9 @@ define('forum/category', [
 	};
 
 	function handleScrollToTopicIndex() {
-		var parts = window.location.pathname.split('/');
-		var topicIndex = parts[parts.length - 1];
+		var topicIndex = ajaxify.data.topicIndex;
 		if (topicIndex && utils.isNumber(topicIndex)) {
-			topicIndex = Math.max(0, parseInt(topicIndex, 10) - 1);
+			topicIndex = Math.max(0, parseInt(topicIndex, 10));
 			if (topicIndex && window.location.search.indexOf('page=') === -1) {
 				navigator.scrollToElement($('[component="category/topic"][data-index="' + topicIndex + '"]'), true, 0);
 			}

@@ -1,6 +1,7 @@
 {
     "chat.chatting_with": "Чат с",
     "chat.placeholder": "Введите сообщение, нажмите Enter для отправки",
+    "chat.scroll-up-alert": "You are looking at older messages, click here to go to most recent message.",
     "chat.send": "Отправить",
     "chat.no_active": "У вас нет активных чатов.",
     "chat.user_typing": "%1 пишет...",
@@ -58,6 +59,7 @@
     "composer.upload-file": "Загрузить файл",
     "composer.zen_mode": "Полноэкранный режим",
     "composer.select_category": "Выберите категорию",
+    "composer.textarea.placeholder": "Введите содержание вашего сообщения здесь, перетащите изображения",
     "bootbox.ok": "ОК",
     "bootbox.cancel": "Отмена",
     "bootbox.confirm": "Подтвердить",

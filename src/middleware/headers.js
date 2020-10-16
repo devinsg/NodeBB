@@ -1,24 +1,33 @@
 'use strict';
 
-var os = require('os');
-var winston = require('winston');
-var _ = require('lodash');
-const nconf = require('nconf');
+const os = require('os');
+const winston = require('winston');
+const _ = require('lodash');
 
-var meta = require('../meta');
-var languages = require('../languages');
+const meta = require('../meta');
+const languages = require('../languages');
+const helpers = require('./helpers');
 
 module.exports = function (middleware) {
-	middleware.addHeaders = function addHeaders(req, res, next) {
-		var headers = {
+	middleware.addHeaders = helpers.try(function addHeaders(req, res, next) {
+		const headers = {
 			'X-Powered-By': encodeURI(meta.config['powered-by'] || 'NodeBB'),
-			'X-Frame-Options': meta.config['allow-from-uri'] ? 'ALLOW-FROM ' + encodeURI(meta.config['allow-from-uri']) : 'SAMEORIGIN',
 			'Access-Control-Allow-Methods': encodeURI(meta.config['access-control-allow-methods'] || ''),
 			'Access-Control-Allow-Headers': encodeURI(meta.config['access-control-allow-headers'] || ''),
 		};
 
+		if (meta.config['csp-frame-ancestors']) {
+			headers['Content-Security-Policy'] = 'frame-ancestors ' + meta.config['csp-frame-ancestors'];
+			if (meta.config['csp-frame-ancestors'] === '\'none\'') {
+				headers['X-Frame-Options'] = 'DENY';
+			}
+		} else {
+			headers['Content-Security-Policy'] = 'frame-ancestors \'self\'';
+			headers['X-Frame-Options'] = 'SAMEORIGIN';
+		}
+
 		if (meta.config['access-control-allow-origin']) {
-			var origins = meta.config['access-control-allow-origin'].split(',');
+			let origins = meta.config['access-control-allow-origin'].split(',');
 			origins = origins.map(function (origin) {
 				return origin && origin.trim();
 			});
@@ -29,7 +38,7 @@ module.exports = function (middleware) {
 		}
 
 		if (meta.config['access-control-allow-origin-regex']) {
-			var originsRegex = meta.config['access-control-allow-origin-regex'].split(',');
+			let originsRegex = meta.config['access-control-allow-origin-regex'].split(',');
 			originsRegex = originsRegex.map(function (origin) {
 				try {
 					origin = new RegExp(origin.trim());
@@ -55,44 +64,45 @@ module.exports = function (middleware) {
 			headers['X-Upstream-Hostname'] = os.hostname();
 		}
 
-		// Ensure that the session is valid. This block guards against edge-cases where the server-side session has
-		// been deleted (but client-side cookie still exists)
-		if (req.uid > 0 && !req.session.meta && !res.get('Set-Cookie')) {
-			res.clearCookie(nconf.get('sessionKey'), meta.configs.cookie.get());
-		}
-
-		for (var key in headers) {
+		for (const key in headers) {
 			if (headers.hasOwnProperty(key) && headers[key]) {
 				res.setHeader(key, headers[key]);
 			}
 		}
 
 		next();
-	};
+	});
 
-	let langs = [];
-	middleware.autoLocale = function autoLocale(req, res, next) {
-		if (parseInt(req.uid, 10) > 0 || !meta.config.autoDetectLang || req.query.lang) {
+	middleware.autoLocale = helpers.try(async function autoLocale(req, res, next) {
+		let langs;
+		if (req.query.lang) {
+			langs = await listCodes();
+			if (!langs.includes(req.query.lang)) {
+				req.query.lang = meta.config.defaultLang;
+			}
 			return next();
 		}
-
+		if (parseInt(req.uid, 10) > 0 || !meta.config.autoDetectLang) {
+			return next();
+		}
+		langs = await listCodes();
 		const lang = req.acceptsLanguages(langs);
 		if (!lang) {
 			return next();
 		}
 		req.query.lang = lang;
 		next();
-	};
-
-	languages.listCodes(function (err, codes) {
-		if (err) {
-			winston.error('[middleware/autoLocale] Could not retrieve languages codes list!');
-			codes = [];
-		}
-
-		winston.verbose('[middleware/autoLocale] Retrieves languages list for middleware');
-		var defaultLang = meta.config.defaultLang || 'en-GB';
-
-		langs = _.uniq([defaultLang, ...codes]);
 	});
+
+	async function listCodes() {
+		const defaultLang = meta.config.defaultLang || 'en-GB';
+		try {
+			const codes = await languages.listCodes();
+			winston.verbose('[middleware/autoLocale] Retrieves languages list for middleware');
+			return _.uniq([defaultLang, ...codes]);
+		} catch (err) {
+			winston.error('[middleware/autoLocale] Could not retrieve languages codes list! ' + err.stack);
+			return [defaultLang];
+		}
+	}
 };

@@ -67,7 +67,7 @@ describe('Upload Controllers', function () {
 				assert.ifError(err);
 				jar = _jar;
 				csrf_token = _csrf_token;
-				privileges.global.give(['upload:post:file'], 'registered-users', done);
+				privileges.global.give(['groups:upload:post:file'], 'registered-users', done);
 			});
 		});
 
@@ -162,7 +162,7 @@ describe('Upload Controllers', function () {
 		});
 
 		it('should fail if file is not an image', function (done) {
-			file.isFileTypeAllowed(path.join(__dirname, '../test/files/notanimage.png'), function (err) {
+			image.isFileTypeAllowed(path.join(__dirname, '../test/files/notanimage.png'), function (err) {
 				assert.equal(err.message, 'Input file contains unsupported image format');
 				done();
 			});
@@ -221,6 +221,13 @@ describe('Upload Controllers', function () {
 		});
 
 		it('should not allow non image uploads', function (done) {
+			socketUser.updateCover({ uid: 1 }, { uid: 1, file: { path: '../../text.txt' } }, function (err) {
+				assert.equal(err.message, '[[error:invalid-data]]');
+				done();
+			});
+		});
+
+		it('should not allow non image uploads', function (done) {
 			socketUser.updateCover({ uid: 1 }, { uid: 1, imageData: 'data:text/html;base64,PHN2Zy9vbmxvYWQ9YWxlcnQoMik+' }, function (err) {
 				assert.equal(err.message, '[[error:invalid-image]]');
 				done();
@@ -230,6 +237,13 @@ describe('Upload Controllers', function () {
 		it('should not allow svg uploads', function (done) {
 			socketUser.updateCover({ uid: 1 }, { uid: 1, imageData: 'data:image/svg;base64,PHN2Zy9vbmxvYWQ9YWxlcnQoMik+' }, function (err) {
 				assert.equal(err.message, '[[error:invalid-image]]');
+				done();
+			});
+		});
+
+		it('should not allow non image uploads', function (done) {
+			socketUser.uploadCroppedPicture({ uid: 1 }, { uid: 1, file: { path: '../../text.txt' } }, function (err) {
+				assert.equal(err.message, '[[error:invalid-data]]');
 				done();
 			});
 		});
@@ -333,25 +347,6 @@ describe('Upload Controllers', function () {
 			});
 		});
 
-
-		it('should fail to upload invalid sound file', function (done) {
-			helpers.uploadFile(nconf.get('url') + '/api/admin/upload/sound', path.join(__dirname, '../test/files/test.png'), { }, jar, csrf_token, function (err, res, body) {
-				assert.ifError(err);
-				assert.equal(res.statusCode, 500);
-				assert.equal(body.error, '[[error:invalid-data]]');
-				done();
-			});
-		});
-
-		it('should upload sound file', function (done) {
-			helpers.uploadFile(nconf.get('url') + '/api/admin/upload/sound', path.join(__dirname, '../test/files/test.wav'), { }, jar, csrf_token, function (err, res, body) {
-				assert.ifError(err);
-				assert.equal(res.statusCode, 200);
-				assert(body);
-				done();
-			});
-		});
-
 		it('should upload default avatar', function (done) {
 			helpers.uploadFile(nconf.get('url') + '/api/admin/uploadDefaultAvatar', path.join(__dirname, '../test/files/test.png'), { }, jar, csrf_token, function (err, res, body) {
 				assert.ifError(err);
@@ -394,6 +389,34 @@ describe('Upload Controllers', function () {
 					assert(body);
 					done();
 				});
+			});
+		});
+
+		it('should upload regular file', function (done) {
+			helpers.uploadFile(nconf.get('url') + '/api/admin/upload/file', path.join(__dirname, '../test/files/test.png'), {
+				params: JSON.stringify({
+					folder: 'system',
+				}),
+			}, jar, csrf_token, function (err, res, body) {
+				assert.ifError(err);
+				assert.equal(res.statusCode, 200);
+				assert(Array.isArray(body));
+				assert.equal(body[0].url, '/assets/uploads/system/test.png');
+				assert(file.existsSync(path.join(nconf.get('upload_path'), 'system', 'test.png')));
+				done();
+			});
+		});
+
+		it('should fail to upload regular file in wrong directory', function (done) {
+			helpers.uploadFile(nconf.get('url') + '/api/admin/upload/file', path.join(__dirname, '../test/files/test.png'), {
+				params: JSON.stringify({
+					folder: '../../system',
+				}),
+			}, jar, csrf_token, function (err, res, body) {
+				assert.ifError(err);
+				assert.equal(res.statusCode, 500);
+				assert.strictEqual(body.error, '[[error:invalid-path]]');
+				done();
 			});
 		});
 	});

@@ -1,15 +1,20 @@
 'use strict';
 
+const winston = require('winston');
+
 const groups = require('../../groups');
 const user = require('../../user');
 const categories = require('../../categories');
 const privileges = require('../../privileges');
 const plugins = require('../../plugins');
 const events = require('../../events');
+const sockets = require('..');
 
 const Categories = module.exports;
 
 Categories.create = async function (socket, data) {
+	sockets.warnDeprecated(socket, 'POST /api/v3/categories');
+
 	if (!data) {
 		throw new Error('[[error:invalid-data]]');
 	}
@@ -17,10 +22,16 @@ Categories.create = async function (socket, data) {
 	return await categories.create(data);
 };
 
+// DEPRECATED: @1.14.3, remove in version >=1.16
 Categories.getAll = async function () {
+	winston.warn('[deprecated] admin.categories.getAll deprecated, data is returned in the api route');
 	const cids = await categories.getAllCidsFromSet('categories:cid');
-	const categoriesData = await categories.getCategoriesData(cids);
-	const result = await plugins.fireHook('filter:admin.categories.get', { categories: categoriesData });
+	const fields = [
+		'cid', 'name', 'icon', 'parentCid', 'disabled', 'link',
+		'color', 'bgColor', 'backgroundImage', 'imageClass',
+	];
+	const categoriesData = await categories.getCategoriesFields(cids, fields);
+	const result = await plugins.fireHook('filter:admin.categories.get', { categories: categoriesData, fields: fields });
 	return categories.getTree(result.categories, 0);
 };
 
@@ -29,6 +40,8 @@ Categories.getNames = async function () {
 };
 
 Categories.purge = async function (socket, cid) {
+	sockets.warnDeprecated(socket, 'DELETE /api/v3/categories/:cid');
+
 	const name = await categories.getCategoryField(cid, 'name');
 	await categories.purge(cid, socket.uid);
 	await events.log({
@@ -41,6 +54,8 @@ Categories.purge = async function (socket, cid) {
 };
 
 Categories.update = async function (socket, data) {
+	sockets.warnDeprecated(socket, 'PUT /api/v3/categories/:cid');
+
 	if (!data) {
 		throw new Error('[[error:invalid-data]]');
 	}
@@ -61,11 +76,9 @@ Categories.setPrivilege = async function (socket, data) {
 		throw new Error('[[error:no-user-or-group]]');
 	}
 
-	if (Array.isArray(data.privilege)) {
-		await Promise.all(data.privilege.map(privilege => groups[data.set ? 'join' : 'leave']('cid:' + data.cid + ':privileges:' + privilege, data.member)));
-	} else {
-		await groups[data.set ? 'join' : 'leave']('cid:' + data.cid + ':privileges:' + data.privilege, data.member);
-	}
+	await privileges.categories[data.set ? 'give' : 'rescind'](
+		Array.isArray(data.privilege) ? data.privilege : [data.privilege], data.cid, data.member
+	);
 
 	await events.log({
 		uid: socket.uid,
@@ -79,7 +92,9 @@ Categories.setPrivilege = async function (socket, data) {
 };
 
 Categories.getPrivilegeSettings = async function (socket, cid) {
-	if (!parseInt(cid, 10)) {
+	if (cid === 'admin') {
+		return await privileges.admin.list(socket.uid);
+	} else if (!parseInt(cid, 10)) {
 		return await privileges.global.list();
 	}
 	return await privileges.categories.list(cid);

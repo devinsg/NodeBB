@@ -3,9 +3,7 @@
 
 ajaxify = window.ajaxify || {};
 
-$(document).ready(function () {
-	var location = document.location || window.location;
-	var rootUrl = location.protocol + '//' + (location.hostname || location.host) + (location.port ? ':' + location.port : '');
+(function () {
 	var apiXHR = null;
 	var ajaxifyTimer;
 
@@ -20,22 +18,6 @@ $(document).ready(function () {
 		translator = _translator;
 		translator.translate('[[error:no-connection]]');
 		Benchpress = _Benchpress;
-	});
-
-	$(window).on('popstate', function (ev) {
-		ev = ev.originalEvent;
-
-		if (ev !== null && ev.state) {
-			if (ev.state.url === null && ev.state.returnPath !== undefined) {
-				window.history.replaceState({
-					url: ev.state.returnPath,
-				}, ev.state.returnPath, config.relative_path + '/' + ev.state.returnPath);
-			} else if (ev.state.url !== undefined) {
-				ajaxify.go(ev.state.url, function () {
-					$(window).trigger('action:popstate', { url: ev.state.url });
-				}, true);
-			}
-		}
 	});
 
 	ajaxify.count = 0;
@@ -94,12 +76,19 @@ $(document).ready(function () {
 			}
 
 			retry = true;
-			app.template = data.template.name;
 
 			renderTemplate(url, data.templateToRender || data.template.name, data, callback);
 		});
 
 		return true;
+	};
+
+	// this function is called just once from footer on page load
+	ajaxify.coldLoad = function () {
+		var url = ajaxify.start(window.location.pathname.slice(1) + window.location.search + window.location.hash);
+		ajaxify.updateHistory(url, true);
+		ajaxify.end(url, ajaxify.data.template.name);
+		$(window).trigger('action:ajaxify.coldLoad');
 	};
 
 	ajaxify.isCold = function () {
@@ -197,10 +186,92 @@ $(document).ready(function () {
 				$('#content, #footer').removeClass('ajaxifying');
 
 				// Only executed on ajaxify. Otherwise these'd be in ajaxify.end()
-				app.refreshTitle(data.title);
-				app.updateTags();
+				updateTitle(data.title);
+				updateTags();
 			});
 		});
+	}
+
+	function updateTitle(title) {
+		if (!title) {
+			return;
+		}
+		require(['translator'], function (translator) {
+			title = config.titleLayout.replace(/&#123;/g, '{').replace(/&#125;/g, '}')
+				.replace('{pageTitle}', function () { return title; })
+				.replace('{browserTitle}', function () { return config.browserTitle; });
+
+			// Allow translation strings in title on ajaxify (#5927)
+			title = translator.unescape(title);
+
+			translator.translate(title, function (translated) {
+				window.document.title = $('<div></div>').html(translated).text();
+			});
+		});
+	}
+
+	function updateTags() {
+		var metaWhitelist = ['title', 'description', /og:.+/, /article:.+/].map(function (val) {
+			return new RegExp(val);
+		});
+		var linkWhitelist = ['canonical', 'alternate', 'up'];
+
+		// Delete the old meta tags
+		Array.prototype.slice
+			.call(document.querySelectorAll('head meta'))
+			.filter(function (el) {
+				var name = el.getAttribute('property') || el.getAttribute('name');
+				return metaWhitelist.some(function (exp) {
+					return !!exp.test(name);
+				});
+			})
+			.forEach(function (el) {
+				document.head.removeChild(el);
+			});
+
+		// Add new meta tags
+		ajaxify.data._header.tags.meta
+			.filter(function (tagObj) {
+				var name = tagObj.name || tagObj.property;
+				return metaWhitelist.some(function (exp) {
+					return !!exp.test(name);
+				});
+			})
+			.forEach(function (tagObj) {
+				var metaEl = document.createElement('meta');
+				Object.keys(tagObj).forEach(function (prop) {
+					metaEl.setAttribute(prop, tagObj[prop]);
+				});
+				document.head.appendChild(metaEl);
+			});
+
+		// Delete the old link tags
+		Array.prototype.slice
+			.call(document.querySelectorAll('head link'))
+			.filter(function (el) {
+				var name = el.getAttribute('rel');
+				return linkWhitelist.some(function (item) {
+					return item === name;
+				});
+			})
+			.forEach(function (el) {
+				document.head.removeChild(el);
+			});
+
+		// Add new link tags
+		ajaxify.data._header.tags.link
+			.filter(function (tagObj) {
+				return linkWhitelist.some(function (item) {
+					return item === tagObj.rel;
+				});
+			})
+			.forEach(function (tagObj) {
+				var linkEl = document.createElement('link');
+				Object.keys(tagObj).forEach(function (prop) {
+					linkEl.setAttribute(prop, tagObj[prop]);
+				});
+				document.head.appendChild(linkEl);
+			});
 	}
 
 	ajaxify.end = function (url, tpl_url) {
@@ -328,17 +399,42 @@ $(document).ready(function () {
 	};
 
 	ajaxify.loadTemplate = function (template, callback) {
-		require([config.relative_path + '/assets/templates/' + template + '.js'], callback, function (err) {
+		require([config.assetBaseUrl + '/templates/' + template + '.js'], callback, function (err) {
 			console.error('Unable to load template: ' + template);
 			throw err;
 		});
 	};
 
+	require(['translator', 'benchpress'], function (translator, Benchpress) {
+		translator.translate('[[error:no-connection]]');
+		Benchpress.registerLoader(ajaxify.loadTemplate);
+		Benchpress.setGlobal('config', config);
+	});
+}());
+
+$(document).ready(function () {
+	$(window).on('popstate', function (ev) {
+		ev = ev.originalEvent;
+
+		if (ev !== null && ev.state) {
+			if (ev.state.url === null && ev.state.returnPath !== undefined) {
+				window.history.replaceState({
+					url: ev.state.returnPath,
+				}, ev.state.returnPath, config.relative_path + '/' + ev.state.returnPath);
+			} else if (ev.state.url !== undefined) {
+				ajaxify.go(ev.state.url, function () {
+					$(window).trigger('action:popstate', { url: ev.state.url });
+				}, true);
+			}
+		}
+	});
+
 	function ajaxifyAnchors() {
 		function hrefEmpty(href) {
 			return href === undefined || href === '' || href === 'javascript:;';
 		}
-
+		var location = document.location || window.location;
+		var rootUrl = location.protocol + '//' + (location.hostname || location.host) + (location.port ? ':' + location.port : '');
 		var contentEl = document.getElementById('content');
 
 		// Enhancing all anchors to ajaxify...
@@ -348,6 +444,8 @@ $(document).ready(function () {
 				return;
 			}
 
+			var $this = $(this);
+			var href = $this.attr('href');
 			var internalLink = utils.isInternalURI(this, window.location, config.relative_path);
 
 			var process = function () {
@@ -379,7 +477,7 @@ $(document).ready(function () {
 				}
 			};
 
-			if ($(this).attr('data-ajaxify') === 'false') {
+			if ($this.attr('data-ajaxify') === 'false') {
 				if (!internalLink) {
 					return;
 				}
@@ -387,12 +485,12 @@ $(document).ready(function () {
 			}
 
 			// Default behaviour for rss feeds
-			if (internalLink && $(this).attr('href') && $(this).attr('href').endsWith('.rss')) {
+			if (internalLink && href && href.endsWith('.rss')) {
 				return;
 			}
 
 			// Default behaviour for sitemap
-			if (internalLink && $(this).attr('href') && String(_self.pathname).startsWith(config.relative_path + '/sitemap') && $(this).attr('href').endsWith('.xml')) {
+			if (internalLink && href && String(_self.pathname).startsWith(config.relative_path + '/sitemap') && href.endsWith('.xml')) {
 				return;
 			}
 
@@ -403,7 +501,7 @@ $(document).ready(function () {
 				return;
 			}
 
-			if (hrefEmpty(this.href) || this.protocol === 'javascript:' || $(this).attr('href') === '#') {
+			if (hrefEmpty(this.href) ||	this.protocol === 'javascript:' || href === '#' || href === '') {
 				return e.preventDefault();
 			}
 
@@ -412,13 +510,11 @@ $(document).ready(function () {
 					return;
 				}
 
-				translator.translate('[[global:unsaved-changes]]', function (text) {
-					bootbox.confirm(text, function (navigate) {
-						if (navigate) {
-							app.flags._unsaved = false;
-							process.call(_self);
-						}
-					});
+				bootbox.confirm('[[global:unsaved-changes]]', function (navigate) {
+					if (navigate) {
+						app.flags._unsaved = false;
+						process.call(_self);
+					}
 				});
 				return e.preventDefault();
 			}
@@ -427,14 +523,8 @@ $(document).ready(function () {
 		});
 	}
 
-	require(['benchpress'], function (Benchpress) {
-		Benchpress.registerLoader(ajaxify.loadTemplate);
-	});
-
 	if (window.history && window.history.pushState) {
 		// Progressive Enhancement, ajaxify available only to modern browsers
 		ajaxifyAnchors();
 	}
-
-	app.load();
 });

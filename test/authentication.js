@@ -165,7 +165,7 @@ describe('authentication', function () {
 				assert(body);
 
 				request({
-					url: nconf.get('url') + '/api/me',
+					url: nconf.get('url') + '/api/self',
 					json: true,
 					jar: jar,
 				}, function (err, response, body) {
@@ -193,7 +193,7 @@ describe('authentication', function () {
 			}, function (err, res, body) {
 				assert.ifError(err);
 				assert.equal(res.statusCode, 401);
-				assert.equal(body, 'not-authorized');
+				assert.strictEqual(body.status.code, 'not-authorised');
 				done();
 			});
 		});
@@ -204,7 +204,7 @@ describe('authentication', function () {
 			assert.ifError(err);
 			assert(body);
 			request({
-				url: nconf.get('url') + '/api/me',
+				url: nconf.get('url') + '/api/self',
 				json: true,
 				jar: jar,
 			}, function (err, response, body) {
@@ -330,13 +330,13 @@ describe('authentication', function () {
 	});
 
 	it('should fail to login if local login is disabled', function (done) {
-		privileges.global.rescind(['local:login'], 'registered-users', function (err) {
+		privileges.global.rescind(['groups:local:login'], 'registered-users', function (err) {
 			assert.ifError(err);
 			loginUser('regular', 'regularpwd', function (err, response, body) {
 				assert.ifError(err);
 				assert.equal(response.statusCode, 403);
 				assert.equal(body, '[[error:local-login-disabled]]');
-				privileges.global.give(['local:login'], 'registered-users', done);
+				privileges.global.give(['groups:local:login'], 'registered-users', done);
 			});
 		});
 	});

@@ -1,13 +1,11 @@
 'use strict';
 
-const validator = require('validator');
 const groups = require('../groups');
-const meta = require('../meta');
 const user = require('../user');
 const utils = require('../utils');
 const events = require('../events');
-const privileges = require('../privileges');
-const notifications = require('../notifications');
+const api = require('../api');
+const sockets = require('.');
 
 const SocketGroups = module.exports;
 
@@ -18,85 +16,15 @@ SocketGroups.before = async (socket, method, data) => {
 };
 
 SocketGroups.join = async (socket, data) => {
-	if (socket.uid <= 0) {
-		throw new Error('[[error:invalid-uid]]');
-	}
-
-	if (typeof data.groupName !== 'string') {
-		throw new Error('[[error:invalid-group-name]]');
-	}
-
-	if (data.groupName === 'administrators' || groups.isPrivilegeGroup(data.groupName)) {
-		throw new Error('[[error:not-allowed]]');
-	}
-
-	const exists = await groups.exists(data.groupName);
-	if (!exists) {
-		throw new Error('[[error:no-group]]');
-	}
-
-	if (!meta.config.allowPrivateGroups) {
-		await groups.join(data.groupName, socket.uid);
-		logGroupEvent(socket, 'group-join', {
-			groupName: data.groupName,
-		});
-		return;
-	}
-
-	const results = await utils.promiseParallel({
-		isAdmin: await user.isAdministrator(socket.uid),
-		groupData: await groups.getGroupData(data.groupName),
-	});
-
-	if (results.groupData.private && results.groupData.disableJoinRequests) {
-		throw new Error('[[error:group-join-disabled]]');
-	}
-
-	if (!results.groupData.private || results.isAdmin) {
-		await groups.join(data.groupName, socket.uid);
-		logGroupEvent(socket, 'group-join', {
-			groupName: data.groupName,
-		});
-	} else {
-		await groups.requestMembership(data.groupName, socket.uid);
-		logGroupEvent(socket, 'group-request-membership', {
-			groupName: data.groupName,
-		});
-	}
+	sockets.warnDeprecated(socket, 'PUT /api/v3/groups/:slug/membership/:uid');
+	const slug = await groups.getGroupField(data.groupName, 'slug');
+	await api.groups.join(socket, { slug: slug, uid: data.uid || socket.uid });
 };
 
 SocketGroups.leave = async (socket, data) => {
-	if (socket.uid <= 0) {
-		throw new Error('[[error:invalid-uid]]');
-	}
-
-	if (typeof data.groupName !== 'string') {
-		throw new Error('[[error:invalid-group-name]]');
-	}
-
-	if (data.groupName === 'administrators') {
-		throw new Error('[[error:cant-remove-self-as-admin]]');
-	}
-
-	const groupData = await groups.getGroupData(data.groupName);
-	if (groupData.disableLeave) {
-		throw new Error('[[error:group-leave-disabled]]');
-	}
-
-	await groups.leave(data.groupName, socket.uid);
-	const username = await user.getUserField(socket.uid, 'username');
-	const notification = await notifications.create({
-		type: 'group-leave',
-		bodyShort: '[[groups:membership.leave.notification_title, ' + username + ', ' + data.groupName + ']]',
-		nid: 'group:' + validator.escape(data.groupName) + ':uid:' + socket.uid + ':group-leave',
-		path: '/groups/' + utils.slugify(data.groupName),
-	});
-	const uids = await groups.getOwners(data.groupName);
-	await notifications.push(notification, uids);
-
-	logGroupEvent(socket, 'group-leave', {
-		groupName: data.groupName,
-	});
+	sockets.warnDeprecated(socket, 'DELETE /api/v3/groups/:slug/membership/:uid');
+	const slug = await groups.getGroupField(data.groupName, 'slug');
+	await api.groups.leave(socket, { slug: slug, uid: data.uid || socket.uid });
 };
 
 SocketGroups.addMember = async (socket, data) => {
@@ -104,10 +32,21 @@ SocketGroups.addMember = async (socket, data) => {
 	if (data.groupName === 'administrators' || groups.isPrivilegeGroup(data.groupName)) {
 		throw new Error('[[error:not-allowed]]');
 	}
-	await groups.join(data.groupName, data.uid);
+	if (!data.uid) {
+		throw new Error('[[error:invalid-data]]');
+	}
+	data.uid = !Array.isArray(data.uid) ? [data.uid] : data.uid;
+	if (data.uid.filter(uid => !(parseInt(uid, 10) > 0)).length) {
+		throw new Error('[[error:invalid-uid]]');
+	}
+	for (const uid of data.uid) {
+		// eslint-disable-next-line no-await-in-loop
+		await groups.join(data.groupName, uid);
+	}
+
 	logGroupEvent(socket, 'group-add-member', {
 		groupName: data.groupName,
-		targetUid: data.uid,
+		targetUid: String(data.uid),
 	});
 };
 
@@ -266,39 +205,15 @@ SocketGroups.kick = async (socket, data) => {
 };
 
 SocketGroups.create = async (socket, data) => {
-	if (!socket.uid) {
-		throw new Error('[[error:no-privileges]]');
-	} else if (typeof data.name !== 'string' || groups.isPrivilegeGroup(data.name)) {
-		throw new Error('[[error:invalid-group-name]]');
-	}
-
-	const canCreate = await privileges.global.can('group:create', socket.uid);
-	if (!canCreate) {
-		throw new Error('[[error:no-privileges]]');
-	}
-	data.ownerUid = socket.uid;
-	data.system = false;
-	const groupData = await groups.create(data);
-	logGroupEvent(socket, 'group-create', {
-		groupName: data.name,
-	});
-
+	sockets.warnDeprecated(socket, 'POST /api/v3/groups');
+	const groupData = await api.groups.create(socket, data);
 	return groupData;
 };
 
 SocketGroups.delete = async (socket, data) => {
-	await isOwner(socket, data);
-	if (
-		data.groupName === 'administrators' || data.groupName === 'registered-users' ||
-		data.groupName === 'guests' || data.groupName === 'Global Moderators'
-	) {
-		throw new Error('[[error:not-allowed]]');
-	}
-
-	await groups.destroy(data.groupName);
-	logGroupEvent(socket, 'group-delete', {
-		groupName: data.groupName,
-	});
+	sockets.warnDeprecated(socket, 'DEL /api/v3/groups');
+	const slug = await groups.getGroupField(data.groupName, 'slug');
+	await api.groups.delete(socket, { slug: slug });
 };
 
 SocketGroups.search = async (socket, data) => {
@@ -326,7 +241,6 @@ SocketGroups.loadMore = async (socket, data) => {
 };
 
 SocketGroups.searchMembers = async (socket, data) => {
-	data.uid = socket.uid;
 	const [isOwner, isMember, isAdmin] = await Promise.all([
 		groups.ownership.isOwner(socket.uid, data.groupName),
 		groups.isMember(socket.uid, data.groupName),
@@ -335,7 +249,11 @@ SocketGroups.searchMembers = async (socket, data) => {
 	if (!isOwner && !isMember && !isAdmin) {
 		throw new Error('[[error:no-privileges]]');
 	}
-	return await groups.searchMembers(data);
+	return await groups.searchMembers({
+		uid: socket.uid,
+		query: data.query,
+		groupName: data.groupName,
+	});
 };
 
 SocketGroups.loadMoreMembers = async (socket, data) => {
@@ -368,8 +286,15 @@ SocketGroups.cover.update = async (socket, data) => {
 	if (!socket.uid) {
 		throw new Error('[[error:no-privileges]]');
 	}
+	if (data.file || (!data.imageData && !data.position)) {
+		throw new Error('[[error:invalid-data]]');
+	}
 	await canModifyGroup(socket.uid, data.groupName);
-	return await groups.updateCover(socket.uid, data);
+	return await groups.updateCover(socket.uid, {
+		groupName: data.groupName,
+		imageData: data.imageData,
+		position: data.position,
+	});
 };
 
 SocketGroups.cover.remove = async (socket, data) => {
@@ -378,7 +303,9 @@ SocketGroups.cover.remove = async (socket, data) => {
 	}
 
 	await canModifyGroup(socket.uid, data.groupName);
-	await groups.removeCover(data);
+	await groups.removeCover({
+		groupName: data.groupName,
+	});
 };
 
 async function canModifyGroup(uid, groupName) {

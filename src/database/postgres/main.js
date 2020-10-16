@@ -42,6 +42,25 @@ module.exports = function (module) {
 		return res.rows[0].e;
 	};
 
+	module.scan = async function (params) {
+		let match = params.match;
+		if (match.startsWith('*')) {
+			match = '%' + match.substring(1);
+		}
+		if (match.endsWith('*')) {
+			match = match.substring(0, match.length - 1) + '%';
+		}
+
+		const res = await module.pool.query({
+			text: `
+		SELECT o."_key"
+		FROM "legacy_object_live" o
+		WHERE o."_key" LIKE '${match}'`,
+		});
+
+		return res.rows.map(r => r._key);
+	};
+
 	module.delete = async function (key) {
 		if (!key) {
 			return;
@@ -190,5 +209,27 @@ UPDATE "legacy_object"
 
 	module.pexpireAt = async function (key, timestamp) {
 		await doExpire(key, new Date(timestamp));
+	};
+
+	async function getExpire(key) {
+		const res = await module.pool.query({
+			name: 'ttl',
+			text: `
+SELECT "expireAt"::TEXT
+  FROM "legacy_object"
+ WHERE "_key" = $1::TEXT
+ LIMIT 1`,
+			values: [key],
+		});
+
+		return res.rows.length ? new Date(res.rows[0].expireAt).getTime() : null;
+	}
+
+	module.ttl = async function (key) {
+		return Math.round((await getExpire(key) - Date.now()) / 1000);
+	};
+
+	module.pttl = async function (key) {
+		return await getExpire(key) - Date.now();
 	};
 };

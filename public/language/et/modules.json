@@ -1,6 +1,7 @@
 {
     "chat.chatting_with": "Chat with",
     "chat.placeholder": "Kirjuta sõnum siia ning vajuta enterit sõnumi saatmiseks",
+    "chat.scroll-up-alert": "You are looking at older messages, click here to go to most recent message.",
     "chat.send": "Saada",
     "chat.no_active": "Sul ei ole hetkel aktiivseid vestlusi.",
     "chat.user_typing": "%1 kirjutab sõnumit...",
@@ -58,6 +59,7 @@
     "composer.upload-file": "Lae fail üles",
     "composer.zen_mode": "Zen Mode",
     "composer.select_category": "Select a category",
+    "composer.textarea.placeholder": "Enter your post content here, drag and drop images",
     "bootbox.ok": "Olgu",
     "bootbox.cancel": "Katkesta",
     "bootbox.confirm": "Kinnita",

@@ -318,6 +318,9 @@ module.exports = function (module) {
 		if (!key) {
 			return;
 		}
+		if (!values.length) {
+			return [];
+		}
 		values = values.map(helpers.valueToString);
 		const results = await module.client.collection('objects').find({
 			_key: key, value: { $in: values },
@@ -356,19 +359,31 @@ module.exports = function (module) {
 		return keys.map(key => !!isMember[key]);
 	};
 
+	module.getSortedSetMembers = async function (key) {
+		const data = await module.getSortedSetsMembers([key]);
+		return data && data[0];
+	};
+
 	module.getSortedSetsMembers = async function (keys) {
 		if (!Array.isArray(keys) || !keys.length) {
 			return [];
 		}
-
+		const arrayOfKeys = keys.length > 1;
+		const projection = { _id: 0, value: 1 };
+		if (arrayOfKeys) {
+			projection._key = 1;
+		}
 		const data = await module.client.collection('objects').find({
-			_key: keys.length === 1 ? keys[0] : { $in: keys },
-		}, { projection: { _id: 0, _key: 1, value: 1 } }).toArray();
+			_key: arrayOfKeys ? { $in: keys } : keys[0],
+		}, { projection: projection }).toArray();
 
-		var sets = {};
-		data.forEach(function (set) {
-			sets[set._key] = sets[set._key] || [];
-			sets[set._key].push(set.value);
+		if (!arrayOfKeys) {
+			return [data.map(item => item.value)];
+		}
+		const sets = {};
+		data.forEach(function (item) {
+			sets[item._key] = sets[item._key] || [];
+			sets[item._key].push(item.value);
 		});
 
 		return keys.map(k => sets[k] || []);
@@ -416,7 +431,7 @@ module.exports = function (module) {
 		count = count !== undefined ? count : 0;
 		buildLexQuery(query, min, max);
 
-		const data = await module.client.collection('objects').find(query, { projection: { _id: 0, _key: 0, score: 0 } })
+		const data = await module.client.collection('objects').find(query, { projection: { _id: 0, value: 1 } })
 			.sort({ value: sort })
 			.skip(start)
 			.limit(count === -1 ? 0 : count)
@@ -453,6 +468,35 @@ module.exports = function (module) {
 			}
 		}
 	}
+
+	module.getSortedSetScan = async function (params) {
+		const project = { _id: 0, value: 1 };
+		if (params.withScores) {
+			project.score = 1;
+		}
+
+		const match = helpers.buildMatchQuery(params.match);
+		let regex;
+		try {
+			regex = new RegExp(match);
+		} catch (err) {
+			return [];
+		}
+
+		const cursor = module.client.collection('objects').find({
+			_key: params.key, value: { $regex: regex },
+		}, { projection: project });
+
+		if (params.limit) {
+			cursor.limit(params.limit);
+		}
+
+		const data = await cursor.toArray();
+		if (!params.withScores) {
+			return data.map(d => d.value);
+		}
+		return data;
+	};
 
 	module.processSortedSet = async function (setKey, processFn, options) {
 		var done = false;

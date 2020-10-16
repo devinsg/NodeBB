@@ -1,6 +1,6 @@
 {
     "test-email.subject": "Test Email",
-    "password-reset-requested": "Password Reset Requested!",
+    "password-reset-requested": "נדרש איפוס סיסמה!",
     "welcome-to": "ברוכים הבאים ל%1",
     "invite": "הזמנה מ%1",
     "greeting_no_name": "שלום",
@@ -21,6 +21,8 @@
     "reset.notify.text1": "אנו מודיעים לך שב%1, סיסמתך שונתה בהצלחה.",
     "reset.notify.text2": "אם לא אישרת בקשה זו, אנא הודע למנהל מיד.",
     "digest.latest_topics": "נושאים אחרונים מ%1",
+    "digest.top-topics": "Top topics from %1",
+    "digest.popular-topics": "Popular topics from %1",
     "digest.cta": "לחץ כאן כדי לבקר ב %1",
     "digest.unsub.info": "תקציר זה נשלח אליך על-פי הגדרות החשבון שלך.",
     "digest.day": "יום",

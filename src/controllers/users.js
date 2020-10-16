@@ -21,7 +21,7 @@ usersController.index = async function (req, res, next) {
 		flagged: usersController.getFlaggedUsers,
 	};
 
-	if (req.query.term) {
+	if (req.query.query) {
 		await usersController.search(req, res, next);
 	} else if (sectionToController[section]) {
 		await sectionToController[section](req, res, next);
@@ -30,20 +30,30 @@ usersController.index = async function (req, res, next) {
 	}
 };
 
-usersController.search = async function (req, res, next) {
-	const allowed = await privileges.global.can('search:users', req.uid);
-	if (!allowed) {
-		return next(new Error('[[error:no-privileges]]'));
+usersController.search = async function (req, res) {
+	const [allowed, isPrivileged] = await Promise.all([
+		privileges.global.can('search:users', req.uid),
+		user.isPrivileged(req.uid),
+	]);
+	let filters = req.query.filters || [];
+	filters = Array.isArray(filters) ? filters : [filters];
+	if (!allowed ||
+		((
+			req.query.searchBy === 'ip' ||
+			req.query.searchBy === 'email' ||
+			filters.includes('banned') ||
+			filters.includes('flagged')
+		) && !isPrivileged)
+	) {
+		throw new Error('[[error:no-privileges]]');
 	}
 	const [searchData, isAdminOrGlobalMod] = await Promise.all([
 		user.search({
-			query: req.query.term,
+			query: req.query.query,
 			searchBy: req.query.searchBy || 'username',
 			page: req.query.page || 1,
 			sortBy: req.query.sortBy || 'joindate',
-			onlineOnly: req.query.onlineOnly === 'true',
-			bannedOnly: req.query.bannedOnly === 'true',
-			flaggedOnly: req.query.flaggedOnly === 'true',
+			filters: filters,
 		}),
 		user.isAdminOrGlobalMod(req.uid),
 	]);

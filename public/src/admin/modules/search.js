@@ -46,6 +46,10 @@ define('admin/modules/search', ['mousetrap'], function (mousetrap) {
 	}
 
 	search.init = function () {
+		if (!app.user.privileges['admin:settings']) {
+			return;
+		}
+
 		socket.emit('admin.getSearchDict', {}, function (err, dict) {
 			if (err) {
 				app.alertError(err);
@@ -84,6 +88,11 @@ define('admin/modules/search', ['mousetrap'], function (mousetrap) {
 
 			ev.preventDefault();
 			return false;
+		});
+
+		mousetrap.bind('/', function (ev) {
+			input.select();
+			ev.preventDefault();
 		});
 
 		mousetrap(input[0]).bind(['up', 'down'], function (ev, key) {

@@ -5,12 +5,6 @@
 		var winston = require('winston');
 
 		module.exports = factory(require('xregexp'), winston);
-		module.exports.walk = function (dir, done) {
-			// DEPRECATED
-			var file = require('../../src/file');
-			winston.warn('[deprecated] `utils.walk` is deprecated. Use `file.walk` instead.');
-			file.walk(dir, done);
-		};
 
 		process.profile = function (operation, start) {
 			console.log('%s took %d milliseconds', operation, process.elapsedTimeSince(start));
@@ -336,6 +330,8 @@
 			return String(str).replace(new RegExp('<(\\/)?(' + (pattern || '[^\\s>]+') + ')(\\s+[^<>]*?)?\\s*(\\/)?>', 'gi'), '');
 		},
 
+
+		// TODO: remove XRegExp & all these in 1.16.0, they are moved to slugify module
 		invalidUnicodeChars: XRegExp('[^\\p{L}\\s\\d\\-_]', 'g'),
 		invalidLatinChars: /[^\w\s\d\-_]/g,
 		trimRegex: /^\s+|\s+$/g,
@@ -344,10 +340,16 @@
 		trimTrailingDash: /-$/g,
 		trimLeadingDash: /^-/g,
 		isLatin: /^[\w\d\s.,\-@]+$/,
-		languageKeyRegex: /\[\[[\w]+:.+\]\]/,
 
 		// http://dense13.com/blog/2009/05/03/converting-string-to-slug-javascript/
 		slugify: function (str, preserveCase) {
+			var stack = new Error('utils.slugify').stack.split('\n').slice(0, 4).join('\n');
+			if (typeof module === 'object' && module.exports) {
+				console.warn('[deprecated] utils.slugify deprecated. Use `require("slugify")` instead.\n' + stack);
+			} else {
+				console.warn('[deprecated] utils.slugify deprecated. Use `require(["slugify"], function (slugify) { ... })` instead.\n' + stack);
+			}
+
 			if (!str) {
 				return '';
 			}
@@ -391,7 +393,7 @@
 		},
 
 		isUserNameValid: function (name) {
-			return (name && name !== '' && (/^['"\s\-+.*[\]0-9\u00BF-\u1FFF\u2C00-\uD7FF\w]+$/.test(name)));
+			return (name && name !== '' && (/^['" \-+.*[\]0-9\u00BF-\u1FFF\u2C00-\uD7FF\w]+$/.test(name)));
 		},
 
 		isPasswordValid: function (password) {
@@ -403,6 +405,7 @@
 			return !isNaN(parseFloat(n)) && isFinite(n);
 		},
 
+		languageKeyRegex: /\[\[[\w]+:.+\]\]/,
 		hasLanguageKey: function (input) {
 			return utils.languageKeyRegex.test(input);
 		},

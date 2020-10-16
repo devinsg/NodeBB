@@ -1,7 +1,13 @@
 'use strict';
 
 
-define('notifications', ['sounds', 'translator', 'components', 'navigator', 'benchpress'], function (sounds, translator, components, navigator, Benchpress) {
+define('notifications', [
+	'translator',
+	'components',
+	'navigator',
+	'benchpress',
+	'tinycon',
+], function (translator, components, navigator, Benchpress, Tinycon) {
 	var Notifications = {};
 
 	var unreadNotifs = {};
@@ -55,32 +61,6 @@ define('notifications', ['sounds', 'translator', 'components', 'navigator', 'ben
 	};
 
 	Notifications.onNewNotification = function (notifData) {
-		// If a path is defined, show notif data, otherwise show generic data
-		var payload = {
-			alert_id: 'new_notif',
-			title: '[[notifications:new_notification]]',
-			timeout: parseInt(config.notificationAlertTimeout, 10) || 5000,
-		};
-
-		if (notifData.path) {
-			payload.message = notifData.bodyShort;
-			payload.type = 'info';
-			payload.clickfn = function () {
-				markNotification(notifData.nid, true);
-				if (notifData.path.startsWith('http') || notifData.path.startsWith('https')) {
-					window.location.href = notifData.path;
-				} else {
-					window.location.href = window.location.protocol + '//' + window.location.host + config.relative_path + notifData.path;
-				}
-			};
-		} else {
-			payload.message = '[[notifications:you_have_unread_notifications]]';
-			payload.type = 'warning';
-		}
-
-		app.alert(payload);
-		app.refreshTitle();
-
 		if (ajaxify.currentPage === 'notifications') {
 			ajaxify.refresh();
 		}
@@ -94,7 +74,6 @@ define('notifications', ['sounds', 'translator', 'components', 'navigator', 'ben
 		});
 
 		if (!unreadNotifs[notifData.nid]) {
-			sounds.play('notification', notifData.nid);
 			unreadNotifs[notifData.nid] = true;
 		}
 	};

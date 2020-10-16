@@ -2,23 +2,29 @@
 
 const meta = require('../meta');
 const user = require('../user');
+const plugins = require('../plugins');
+const privileges = require('../privileges');
 
 const sockets = require('../socket.io');
 
 
 module.exports = function (Messaging) {
 	Messaging.editMessage = async (uid, mid, roomId, content) => {
+		await Messaging.checkContent(content);
 		const raw = await Messaging.getMessageField(mid, 'content');
 		if (raw === content) {
 			return;
 		}
-		if (!String(content).trim()) {
-			throw new Error('[[error:invalid-chat-message]]');
-		}
-		await Messaging.setMessageFields(mid, {
+
+		const payload = await plugins.fireHook('filter:messaging.edit', {
 			content: content,
 			edited: Date.now(),
 		});
+
+		if (!String(payload.content).trim()) {
+			throw new Error('[[error:invalid-chat-message]]');
+		}
+		await Messaging.setMessageFields(mid, payload);
 
 		// Propagate this change to users in the room
 		const [uids, messages] = await Promise.all([
@@ -47,12 +53,13 @@ module.exports = function (Messaging) {
 			throw new Error('[[error:chat-message-editing-disabled]]');
 		}
 
-		const userData = await user.getUserFields(uid, ['banned', 'email:confirmed']);
+		const userData = await user.getUserFields(uid, ['banned']);
 		if (userData.banned) {
 			throw new Error('[[error:user-banned]]');
 		}
-		if (meta.config.requireEmailConfirmation && !userData['email:confirmed']) {
-			throw new Error('[[error:email-not-confirmed]]');
+		const canChat = await privileges.global.can('chat', uid);
+		if (!canChat) {
+			throw new Error('[[error:no-privileges]]');
 		}
 
 		const [isAdmin, messageData] = await Promise.all([

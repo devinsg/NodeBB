@@ -6,6 +6,7 @@ const user = require('../user');
 const meta = require('../meta');
 const apiController = require('../controllers/api');
 const privileges = require('../privileges');
+const sockets = require('.');
 const socketHelpers = require('./helpers');
 
 const SocketTopics = module.exports;
@@ -18,6 +19,8 @@ require('./topics/tags')(SocketTopics);
 require('./topics/merge')(SocketTopics);
 
 SocketTopics.post = async function (socket, data) {
+	sockets.warnDeprecated(socket, 'POST /api/v3/topics');
+
 	if (!data) {
 		throw new Error('[[error:invalid-data]]');
 	}
@@ -79,10 +82,13 @@ SocketTopics.changeWatching = async function (socket, data) {
 	if (!commands.includes(data.type)) {
 		throw new Error('[[error:invalid-command]]');
 	}
+
+	sockets.warnDeprecated(socket, 'PUT/DELETE /api/v3/topics/:tid/(follow|ignore)');
 	await followCommand(topics[data.type], socket, data.tid);
 };
 
 SocketTopics.follow = async function (socket, tid) {
+	sockets.warnDeprecated(socket, 'PUT /api/v3/topics/:tid/follow');
 	await followCommand(topics.follow, socket, tid);
 };
 

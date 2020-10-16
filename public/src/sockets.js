@@ -3,7 +3,6 @@
 
 app = window.app || {};
 socket = window.socket;
-app.isConnected = false;
 
 (function () {
 	var reconnecting = false;
@@ -73,11 +72,34 @@ app.isConnected = false;
 		socket.on('event:alert', function (params) {
 			app.alert(params);
 		});
+		socket.on('event:deprecated_call', function (data) {
+			console.warn('[socket.io] ', data.eventName, 'is now deprecated in favour of', data.replacement);
+		});
+
+		socket.removeAllListeners('event:nodebb.ready');
+		socket.on('event:nodebb.ready', function (data) {
+			if ((data.hostname === app.upstreamHost) && (!app.cacheBuster || app.cacheBuster !== data['cache-buster'])) {
+				app.cacheBuster = data['cache-buster'];
+
+				app.alert({
+					alert_id: 'forum_updated',
+					title: '[[global:updated.title]]',
+					message: '[[global:updated.message]]',
+					clickfn: function () {
+						window.location.reload();
+					},
+					type: 'warning',
+				});
+			}
+		});
+		socket.on('event:livereload', function () {
+			if (app.user.isAdmin && !ajaxify.currentPage.match(/admin/)) {
+				window.location.reload();
+			}
+		});
 	}
 
 	function onConnect() {
-		app.isConnected = true;
-
 		if (!reconnecting) {
 			app.showMessages();
 			$(window).trigger('action:connected');
@@ -109,30 +131,30 @@ app.isConnected = false;
 		var room;
 
 		switch (url_parts[0]) {
-		case 'user':
-			room = 'user/' + (ajaxify.data ? ajaxify.data.theirid : 0);
-			break;
-		case 'topic':
-			room = 'topic_' + url_parts[1];
-			break;
-		case 'category':
-			room = 'category_' + url_parts[1];
-			break;
-		case 'recent':
-			room = 'recent_topics';
-			break;
-		case 'unread':
-			room = 'unread_topics';
-			break;
-		case 'popular':
-			room = 'popular_topics';
-			break;
-		case 'admin':
-			room = 'admin';
-			break;
-		case 'categories':
-			room = 'categories';
-			break;
+			case 'user':
+				room = 'user/' + (ajaxify.data ? ajaxify.data.theirid : 0);
+				break;
+			case 'topic':
+				room = 'topic_' + url_parts[1];
+				break;
+			case 'category':
+				room = 'category_' + url_parts[1];
+				break;
+			case 'recent':
+				room = 'recent_topics';
+				break;
+			case 'unread':
+				room = 'unread_topics';
+				break;
+			case 'popular':
+				room = 'popular_topics';
+				break;
+			case 'admin':
+				room = 'admin';
+				break;
+			case 'categories':
+				room = 'categories';
+				break;
 		}
 		app.currentRoom = '';
 		app.enterRoom(room);
@@ -155,7 +177,6 @@ app.isConnected = false;
 
 	function onDisconnect() {
 		$(window).trigger('action:disconnected');
-		app.isConnected = false;
 	}
 
 	function onEventBanned(data) {

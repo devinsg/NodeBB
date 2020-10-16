@@ -19,6 +19,7 @@ apiController.loadConfig = async function (req) {
 	let config = {
 		relative_path: nconf.get('relative_path'),
 		upload_url: nconf.get('upload_url'),
+		assetBaseUrl: `${nconf.get('relative_path')}/assets`,
 		siteTitle: validator.escape(String(meta.config.title || meta.config.browserTitle || 'NodeBB')),
 		browserTitle: validator.escape(String(meta.config.browserTitle || meta.config.title || 'NodeBB')),
 		titleLayout: (meta.config.titleLayout || '{pageTitle} | {browserTitle}').replace(/{/g, '&#123;').replace(/}/g, '&#125;'),
@@ -61,7 +62,6 @@ apiController.loadConfig = async function (req) {
 		searchEnabled: plugins.hasListeners('filter:search.query'),
 		bootswatchSkin: meta.config.bootswatchSkin || '',
 		enablePostHistory: meta.config.enablePostHistory === 1,
-		notificationAlertTimeout: meta.config.notificationAlertTimeout || 5000,
 		timeagoCutoff: meta.config.timeagoCutoff !== '' ? Math.max(0, parseInt(meta.config.timeagoCutoff, 10)) : meta.config.timeagoCutoff,
 		timeagoCodes: languages.timeagoCodes,
 		cookies: {
@@ -93,7 +93,6 @@ apiController.loadConfig = async function (req) {
 	config.topicSearchEnabled = settings.topicSearchEnabled || false;
 	config.bootswatchSkin = (meta.config.disableCustomUserSkins !== 1 && settings.bootswatchSkin && settings.bootswatchSkin !== '') ? settings.bootswatchSkin : '';
 	config = await plugins.fireHook('filter:config.get', config);
-	req.res.locals.config = config;
 	return config;
 };
 

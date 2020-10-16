@@ -3,11 +3,12 @@
 const winston = require('winston');
 
 const plugins = require('../plugins');
-const utils = require('../utils');
+const slugify = require('../slugify');
 const db = require('../database');
 const user = require('../user');
 const batch = require('../batch');
 const meta = require('../meta');
+const cache = require('../cache');
 
 
 module.exports = function (Groups) {
@@ -131,8 +132,8 @@ module.exports = function (Groups) {
 		if (Groups.isPrivilegeGroup(newName)) {
 			throw new Error('[[error:invalid-group-name]]');
 		}
-		const currentSlug = utils.slugify(currentName);
-		const newSlug = utils.slugify(newName);
+		const currentSlug = slugify(currentName);
+		const newSlug = slugify(newName);
 		if (currentName === newName || currentSlug === newSlug) {
 			return;
 		}
@@ -173,13 +174,14 @@ module.exports = function (Groups) {
 		await updateNavigationItems(oldName, newName);
 		await updateWidgets(oldName, newName);
 		await updateConfig(oldName, newName);
-		await db.setObject('group:' + oldName, { name: newName, slug: utils.slugify(newName) });
+		await db.setObject('group:' + oldName, { name: newName, slug: slugify(newName) });
 		await db.deleteObjectField('groupslug:groupname', group.slug);
-		await db.setObjectField('groupslug:groupname', utils.slugify(newName), newName);
+		await db.setObjectField('groupslug:groupname', slugify(newName), newName);
 
 		const allGroups = await db.getSortedSetRange('groups:createtime', 0, -1);
 		const keys = allGroups.map(group => 'group:' + group + ':members');
 		await renameGroupsMember(keys, oldName, newName);
+		cache.del(keys);
 
 		await db.rename('group:' + oldName, 'group:' + newName);
 		await db.rename('group:' + oldName + ':members', 'group:' + newName + ':members');

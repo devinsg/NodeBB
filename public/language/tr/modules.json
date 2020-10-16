@@ -1,6 +1,7 @@
 {
     "chat.chatting_with": "Sohbet",
     "chat.placeholder": "Buraya bir mesaj girin, göndermek için girişe basın",
+    "chat.scroll-up-alert": "Eski mesajlara bakıyorsunuz, en yeni mesajları görmek için buraya tıklayınız.",
     "chat.send": "Gönder",
     "chat.no_active": "Aktif sohbet mevcut değil",
     "chat.user_typing": "%1 yazıyor ...",
@@ -58,6 +59,7 @@
     "composer.upload-file": "Dosya Yükle",
     "composer.zen_mode": "Tam ekran modu",
     "composer.select_category": "Bir kategori seç",
+    "composer.textarea.placeholder": "İletinizi buraya giriniz, görselleri sürükleyip bırakabilirsiniz",
     "bootbox.ok": "Kabul",
     "bootbox.cancel": "İptal",
     "bootbox.confirm": "Onayla",

@@ -12,6 +12,8 @@ const websockets = require('../index');
 
 module.exports = function (SocketPosts) {
 	SocketPosts.edit = async function (socket, data) {
+		websockets.warnDeprecated(socket, 'PUT /api/v3/posts/:pid');
+
 		if (!socket.uid) {
 			throw new Error('[[error:not-logged-in]]');
 		} else if (!data || !data.pid || (meta.config.minimumPostLength !== 0 && !data.content)) {
@@ -25,10 +27,6 @@ module.exports = function (SocketPosts) {
 			throw new Error('[[error:title-too-short, ' + meta.config.minimumTitleLength + ']]');
 		} else if (data.title && data.title.length > meta.config.maximumTitleLength) {
 			throw new Error('[[error:title-too-long, ' + meta.config.maximumTitleLength + ']]');
-		} else if (data.tags && data.tags.length < meta.config.minimumTagsPerTopic) {
-			throw new Error('[[error:not-enough-tags, ' + meta.config.minimumTagsPerTopic + ']]');
-		} else if (data.tags && data.tags.length > meta.config.maximumTagsPerTopic) {
-			throw new Error('[[error:too-many-tags, ' + meta.config.maximumTagsPerTopic + ']]');
 		} else if (meta.config.minimumPostLength !== 0 && contentLen < meta.config.minimumPostLength) {
 			throw new Error('[[error:content-too-short, ' + meta.config.minimumPostLength + ']]');
 		} else if (contentLen > meta.config.maximumPostLength) {
