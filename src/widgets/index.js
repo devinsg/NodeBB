@@ -3,14 +3,12 @@
 const winston = require('winston');
 const _ = require('lodash');
 const Benchpress = require('benchpressjs');
-const util = require('util');
 
 const plugins = require('../plugins');
 const groups = require('../groups');
 const translator = require('../translator');
 const db = require('../database');
 const apiController = require('../controllers/api');
-const loadConfigAsync = util.promisify(apiController.loadConfig);
 const meta = require('../meta');
 
 const widgets = module.exports;
@@ -59,12 +57,12 @@ async function renderWidget(widget, uid, options) {
 
 	let config = options.res.locals.config || {};
 	if (options.res.locals.isAPI) {
-		config = await loadConfigAsync(options.req);
+		config = await apiController.loadConfig(options.req);
 	}
 
 	const userLang = config.userLang || meta.config.defaultLang || 'en-GB';
 	const templateData = _.assign({ }, options.templateData, { config: config });
-	const data = await plugins.fireHook('filter:widget.render:' + widget.widget, {
+	const data = await plugins.hooks.fire('filter:widget.render:' + widget.widget, {
 		uid: uid,
 		area: options,
 		templateData: templateData,
@@ -177,7 +175,7 @@ widgets.reset = async function () {
 	];
 
 	const [areas, drafts] = await Promise.all([
-		plugins.fireHook('filter:widgets.getAreas', defaultAreas),
+		plugins.hooks.fire('filter:widgets.getAreas', defaultAreas),
 		widgets.getArea('global', 'drafts'),
 	]);
 

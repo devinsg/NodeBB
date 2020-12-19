@@ -13,7 +13,7 @@ get:
     Subcategories are also returned, nested under a category's `children` property.
   responses:
     "200":
-      description: A list of category objectscurrently available to the accessing user
+      description: A list of category objects currently available to the accessing user
       content:
         application/json:
           schema:
@@ -150,6 +150,9 @@ get:
                                       username:
                                         type: string
                                         description: A friendly name for a given user account
+                                      displayname:
+                                        type: string
+                                        description: This is either username or fullname depending on forum and user settings
                                       userslug:
                                         type: string
                                         description: An URL-safe variant of the username (i.e. lower-cased, spaces

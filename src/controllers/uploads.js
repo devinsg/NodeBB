@@ -11,15 +11,17 @@ const plugins = require('../plugins');
 const image = require('../image');
 const privileges = require('../privileges');
 
+const helpers = require('./helpers');
+
 const uploadsController = module.exports;
 
 uploadsController.upload = async function (req, res, filesIterator) {
 	let files = req.files.files;
 
+	// These checks added because of odd behaviour by request: https://github.com/request/request/issues/2445
 	if (!Array.isArray(files)) {
-		return res.status(500).json('invalid files');
+		return helpers.formatApiResponse(500, res, new Error('[[error:invalid-file]]'));
 	}
-
 	if (Array.isArray(files[0])) {
 		files = files[0];
 	}
@@ -30,9 +32,10 @@ uploadsController.upload = async function (req, res, filesIterator) {
 			/* eslint-disable no-await-in-loop */
 			images.push(await filesIterator(fileObj));
 		}
-		res.status(200).json(images);
+		helpers.formatApiResponse(200, res, { images });
+		return images;
 	} catch (err) {
-		res.status(500).json({ path: req.path, error: err.message });
+		return helpers.formatApiResponse(500, res, err);
 	} finally {
 		deleteTempFiles(files);
 	}
@@ -56,8 +59,8 @@ async function uploadAsImage(req, uploadedFile) {
 	await image.checkDimensions(uploadedFile.path);
 	await image.stripEXIF(uploadedFile.path);
 
-	if (plugins.hasListeners('filter:uploadImage')) {
-		return await plugins.fireHook('filter:uploadImage', {
+	if (plugins.hooks.hasListeners('filter:uploadImage')) {
+		return await plugins.hooks.fire('filter:uploadImage', {
 			image: uploadedFile,
 			uid: req.uid,
 			folder: 'files',
@@ -66,8 +69,9 @@ async function uploadAsImage(req, uploadedFile) {
 	await image.isFileTypeAllowed(uploadedFile.path);
 
 	let fileObj = await uploadsController.uploadFile(req.uid, uploadedFile);
-
-	if (meta.config.resizeImageWidth === 0 || meta.config.resizeImageWidthThreshold === 0) {
+	// sharp can't save svgs skip resize for them
+	const isSVG = uploadedFile.type === 'image/svg+xml';
+	if (isSVG || meta.config.resizeImageWidth === 0 || meta.config.resizeImageWidthThreshold === 0) {
 		return fileObj;
 	}
 
@@ -106,24 +110,27 @@ async function resizeImage(fileObj) {
 	return fileObj;
 }
 
-uploadsController.uploadThumb = async function (req, res, next) {
+uploadsController.uploadThumb = async function (req, res) {
 	if (!meta.config.allowTopicsThumbnail) {
 		deleteTempFiles(req.files.files);
-		return next(new Error('[[error:topic-thumbnails-are-disabled]]'));
+		return helpers.formatApiResponse(503, res, new Error('[[error:topic-thumbnails-are-disabled]]'));
 	}
 
-	await uploadsController.upload(req, res, async function (uploadedFile) {
+	return await uploadsController.upload(req, res, async function (uploadedFile) {
 		if (!uploadedFile.type.match(/image./)) {
 			throw new Error('[[error:invalid-file]]');
 		}
 		await image.isFileTypeAllowed(uploadedFile.path);
-		await image.resizeImage({
-			path: uploadedFile.path,
-			width: meta.config.topicThumbSize,
-			height: meta.config.topicThumbSize,
-		});
-		if (plugins.hasListeners('filter:uploadImage')) {
-			return await plugins.fireHook('filter:uploadImage', {
+		const dimensions = await image.checkDimensions(uploadedFile.path);
+
+		if (dimensions.width > parseInt(meta.config.topicThumbSize, 10)) {
+			await image.resizeImage({
+				path: uploadedFile.path,
+				width: meta.config.topicThumbSize,
+			});
+		}
+		if (plugins.hooks.hasListeners('filter:uploadImage')) {
+			return await plugins.hooks.fire('filter:uploadImage', {
 				image: uploadedFile,
 				uid: req.uid,
 				folder: 'files',
@@ -135,8 +142,8 @@ uploadsController.uploadThumb = async function (req, res, next) {
 };
 
 uploadsController.uploadFile = async function (uid, uploadedFile) {
-	if (plugins.hasListeners('filter:uploadFile')) {
-		return await plugins.fireHook('filter:uploadFile', {
+	if (plugins.hooks.hasListeners('filter:uploadFile')) {
+		return await plugins.hooks.fire('filter:uploadFile', {
 			file: uploadedFile,
 			uid: uid,
 			folder: 'files',
@@ -175,7 +182,7 @@ async function saveFileToLocal(uid, folder, uploadedFile) {
 	};
 	const fileKey = upload.url.replace(nconf.get('upload_url'), '');
 	await db.sortedSetAdd('uid:' + uid + ':uploads', Date.now(), fileKey);
-	const data = await plugins.fireHook('filter:uploadStored', { uid: uid, uploadedFile: uploadedFile, storedFile: storedFile });
+	const data = await plugins.hooks.fire('filter:uploadStored', { uid: uid, uploadedFile: uploadedFile, storedFile: storedFile });
 	return data.storedFile;
 }
 

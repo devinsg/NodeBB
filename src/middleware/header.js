@@ -26,20 +26,28 @@ var controllers = {
 
 const middleware = module.exports;
 
+const relative_path = nconf.get('relative_path');
+
 middleware.buildHeader = helpers.try(async function buildHeader(req, res, next) {
 	res.locals.renderHeader = true;
 	res.locals.isAPI = false;
-	const [config] = await Promise.all([
+	const [config, isBanned] = await Promise.all([
 		controllers.api.loadConfig(req),
-		plugins.fireHook('filter:middleware.buildHeader', { req: req, locals: res.locals }),
+		user.bans.isBanned(req.uid),
+		plugins.hooks.fire('filter:middleware.buildHeader', { req: req, locals: res.locals }),
 	]);
+
+	if (isBanned) {
+		req.logout();
+		return res.redirect('/');
+	}
 	res.locals.config = config;
 	next();
 });
 
 middleware.buildHeaderAsync = util.promisify(middleware.buildHeader);
 
-async function generateHeader(req, res, data) {
+middleware.renderHeader = async function renderHeader(req, res, data) {
 	var registrationType = meta.config.registrationType || 'normal';
 	res.locals.config = res.locals.config || {};
 	var templateValues = {
@@ -52,9 +60,9 @@ async function generateHeader(req, res, data) {
 		'brand:logo:alt': meta.config['brand:logo:alt'] || '',
 		'brand:logo:display': meta.config['brand:logo'] ? '' : 'hide',
 		allowRegistration: registrationType === 'normal',
-		searchEnabled: plugins.hasListeners('filter:search.query'),
+		searchEnabled: plugins.hooks.hasListeners('filter:search.query'),
 		config: res.locals.config,
-		relative_path: nconf.get('relative_path'),
+		relative_path,
 		bodyClass: data.bodyClass,
 	};
 
@@ -71,18 +79,10 @@ async function generateHeader(req, res, data) {
 		timeagoCode: languages.userTimeagoCode(res.locals.config.userLang),
 		browserTitle: translator.translate(controllers.helpers.buildTitle(translator.unescape(data.title))),
 		navigation: navigation.get(req.uid),
-		banned: user.bans.isBanned(req.uid),
-		banReason: user.bans.getReason(req.uid),
-
 		unreadData: topics.getUnreadData({ uid: req.uid }),
 		unreadChatCount: messaging.getUnreadCount(req.uid),
 		unreadNotificationCount: user.notifications.getUnreadCount(req.uid),
 	});
-
-	if (results.banned) {
-		req.logout();
-		return res.redirect('/');
-	}
 
 	const unreadData = {
 		'': {},
@@ -157,6 +157,9 @@ async function generateHeader(req, res, data) {
 	templateValues.defaultLang = meta.config.defaultLang || 'en-GB';
 	templateValues.userLang = res.locals.config.userLang;
 	templateValues.languageDirection = results.languageDirection;
+	if (req.query.noScriptMessage) {
+		templateValues.noScriptMessage = validator.escape(String(req.query.noScriptMessage));
+	}
 
 	templateValues.template = { name: res.locals.template };
 	templateValues.template[res.locals.template] = true;
@@ -170,28 +173,24 @@ async function generateHeader(req, res, data) {
 		modifyTitle(templateValues);
 	}
 
-	const hookReturn = await plugins.fireHook('filter:middleware.renderHeader', {
+	const hookReturn = await plugins.hooks.fire('filter:middleware.renderHeader', {
 		req: req,
 		res: res,
 		templateValues: templateValues,
 		data: data,
 	});
 
-	return hookReturn.templateValues;
-}
-
-middleware.renderHeader = async function renderHeader(req, res, data) {
-	return await req.app.renderAsync('header', await generateHeader(req, res, data));
+	return await req.app.renderAsync('header', hookReturn.templateValues);
 };
 
 middleware.renderFooter = async function renderFooter(req, res, templateValues) {
-	const data = await plugins.fireHook('filter:middleware.renderFooter', {
+	const data = await plugins.hooks.fire('filter:middleware.renderFooter', {
 		req: req,
 		res: res,
 		templateValues: templateValues,
 	});
 
-	const scripts = await plugins.fireHook('filter:scripts.get', []);
+	const scripts = await plugins.hooks.fire('filter:scripts.get', []);
 
 	data.templateValues.scripts = scripts.map(function (script) {
 		return { src: script };

@@ -15,11 +15,17 @@ const languages = require('../languages');
 
 const apiController = module.exports;
 
+const relative_path = nconf.get('relative_path');
+const upload_url = nconf.get('upload_url');
+const socketioTransports = nconf.get('socket.io:transports') || ['polling', 'websocket'];
+const socketioOrigins = nconf.get('socket.io:origins');
+const websocketAddress = nconf.get('socket.io:address') || '';
+
 apiController.loadConfig = async function (req) {
 	let config = {
-		relative_path: nconf.get('relative_path'),
-		upload_url: nconf.get('upload_url'),
-		assetBaseUrl: `${nconf.get('relative_path')}/assets`,
+		relative_path,
+		upload_url,
+		assetBaseUrl: `${relative_path}/assets`,
 		siteTitle: validator.escape(String(meta.config.title || meta.config.browserTitle || 'NodeBB')),
 		browserTitle: validator.escape(String(meta.config.browserTitle || meta.config.title || 'NodeBB')),
 		titleLayout: (meta.config.titleLayout || '{pageTitle} | {browserTitle}').replace(/{/g, '&#123;').replace(/}/g, '&#125;'),
@@ -40,9 +46,9 @@ apiController.loadConfig = async function (req) {
 		disableChat: meta.config.disableChat === 1,
 		disableChatMessageEditing: meta.config.disableChatMessageEditing === 1,
 		maximumChatMessageLength: meta.config.maximumChatMessageLength || 1000,
-		socketioTransports: nconf.get('socket.io:transports') || ['polling', 'websocket'],
-		socketioOrigins: nconf.get('socket.io:origins'),
-		websocketAddress: nconf.get('socket.io:address') || '',
+		socketioTransports,
+		socketioOrigins,
+		websocketAddress,
 		maxReconnectionAttempts: meta.config.maxReconnectionAttempts || 5,
 		reconnectionDelay: meta.config.reconnectionDelay || 1500,
 		topicsPerPage: meta.config.topicsPerPage || 20,
@@ -59,7 +65,7 @@ apiController.loadConfig = async function (req) {
 		topicPostSort: meta.config.topicPostSort || 'oldest_to_newest',
 		categoryTopicSort: meta.config.categoryTopicSort || 'newest_to_oldest',
 		csrf_token: req.uid >= 0 && req.csrfToken && req.csrfToken(),
-		searchEnabled: plugins.hasListeners('filter:search.query'),
+		searchEnabled: plugins.hooks.hasListeners('filter:search.query'),
 		bootswatchSkin: meta.config.bootswatchSkin || '',
 		enablePostHistory: meta.config.enablePostHistory === 1,
 		timeagoCutoff: meta.config.timeagoCutoff !== '' ? Math.max(0, parseInt(meta.config.timeagoCutoff, 10)) : meta.config.timeagoCutoff,
@@ -70,6 +76,9 @@ apiController.loadConfig = async function (req) {
 			dismiss: translator.escape(validator.escape(meta.config.cookieConsentDismiss || '[[global:cookies.accept]]')).replace(/\\/g, '\\\\'),
 			link: translator.escape(validator.escape(meta.config.cookieConsentLink || '[[global:cookies.learn_more]]')).replace(/\\/g, '\\\\'),
 			link_url: translator.escape(validator.escape(meta.config.cookieConsentLinkUrl || 'https://www.cookiesandyou.com')).replace(/\\/g, '\\\\'),
+		},
+		thumbs: {
+			size: meta.config.topicThumbSize,
 		},
 	};
 
@@ -92,7 +101,7 @@ apiController.loadConfig = async function (req) {
 	config.categoryTopicSort = settings.categoryTopicSort || config.categoryTopicSort;
 	config.topicSearchEnabled = settings.topicSearchEnabled || false;
 	config.bootswatchSkin = (meta.config.disableCustomUserSkins !== 1 && settings.bootswatchSkin && settings.bootswatchSkin !== '') ? settings.bootswatchSkin : '';
-	config = await plugins.fireHook('filter:config.get', config);
+	config = await plugins.hooks.fire('filter:config.get', config);
 	return config;
 };
 

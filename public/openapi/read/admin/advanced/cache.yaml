@@ -2,6 +2,15 @@ get:
   tags:
     - admin
   summary: Get system cache info
+  parameters:
+    - in: query
+      name: name
+      schema:
+        type: string
+        enum: ['post', 'object', 'group', 'local']
+      required: false
+      description: Specify cache to dump if calling `/dump`
+      example: 'post'
   responses:
     "200":
       description: ""
@@ -23,14 +32,14 @@ get:
                         type: number
                       percentFull:
                         type: number
-                      avgPostSize:
-                        type: number
                       hits:
                         type: string
                       misses:
                         type: string
                       hitRatio:
                         type: string
+                      enabled:
+                        type: boolean
                   groupCache:
                     type: object
                     properties:
@@ -48,6 +57,8 @@ get:
                         type: string
                       hitRatio:
                         type: string
+                      enabled:
+                        type: boolean
                   localCache:
                     type: object
                     properties:
@@ -59,14 +70,14 @@ get:
                         type: number
                       percentFull:
                         type: number
-                      dump:
-                        type: boolean
                       hits:
                         type: string
                       misses:
                         type: string
                       hitRatio:
                         type: string
+                      enabled:
+                        type: boolean
                   objectCache:
                     type: object
                     properties:
@@ -84,6 +95,8 @@ get:
                         type: string
                       hitRatio:
                         type: string
+                      enabled:
+                        type: boolean
                 required:
                   - postCache
                   - groupCache

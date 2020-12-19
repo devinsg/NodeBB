@@ -1,8 +1,8 @@
 'use strict';
 
 define('admin/manage/users', [
-	'translator', 'benchpress', 'autocomplete', 'api', 'slugify',
-], function (translator, Benchpress, autocomplete, api, slugify) {
+	'translator', 'benchpress', 'autocomplete', 'api', 'slugify', 'bootbox', 'accounts/invite',
+], function (translator, Benchpress, autocomplete, api, slugify, bootbox, AccountInvite) {
 	var Users = {};
 
 	Users.init = function () {
@@ -11,6 +11,34 @@ define('admin/manage/users', [
 			query.resultsPerPage = $('#results-per-page').val();
 			var qs = buildSearchQuery(query);
 			ajaxify.go(window.location.pathname + '?' + qs);
+		});
+
+		$('.export-csv').on('click', function () {
+			socket.once('event:export-users-csv', function () {
+				app.removeAlert('export-users-start');
+				app.alert({
+					alert_id: 'export-users',
+					type: 'success',
+					title: '[[global:alert.success]]',
+					message: '[[admin/manage/users:export-users-completed]]',
+					clickfn: function () {
+						window.location.href = config.relative_path + '/api/admin/users/csv';
+					},
+					timeout: 0,
+				});
+			});
+			socket.emit('admin.user.exportUsersCSV', {}, function (err) {
+				if (err) {
+					return app.alertError(err);
+				}
+				app.alert({
+					alert_id: 'export-users-start',
+					message: '[[admin/manage/users:export-users-started]]',
+					timeout: (ajaxify.data.userCount / 5000) * 500,
+				});
+			});
+
+			return false;
 		});
 
 		function getSelectedUids() {
@@ -36,8 +64,12 @@ define('admin/manage/users', [
 			$('.users-table [component="user/select/all"]').prop('checked', false);
 		}
 
-		function removeSelected() {
-			$('.users-table [component="user/select/single"]:checked').parents('.user-row').remove();
+		function removeRow(uid) {
+			const checkboxEl = document.querySelector(`.users-table [component="user/select/single"][data-uid="${uid}"]`);
+			if (checkboxEl) {
+				const rowEl = checkboxEl.closest('.user-row');
+				rowEl.parentNode.removeChild(rowEl);
+			}
 		}
 
 		// use onSuccess instead
@@ -76,7 +108,7 @@ define('admin/manage/users', [
 				if (err) {
 					return app.alertError(err);
 				}
-				Benchpress.parse('admin/partials/manage_user_groups', data, function (html) {
+				Benchpress.render('admin/partials/manage_user_groups', data).then(function (html) {
 					var modal = bootbox.dialog({
 						message: html,
 						title: '[[admin/manage/users:manage-groups]]',
@@ -90,7 +122,7 @@ define('admin/manage/users', [
 								app.parseAndTranslate('admin/partials/manage_user_groups', { users: [{ groups: [ui.item.group] }] }, function (html) {
 									$('[data-uid=' + uid + '] .group-area').append(html.find('.group-area').html());
 								});
-							});
+							}).catch(app.alertError);
 						});
 					});
 					modal.on('click', '.group-area a', function () {
@@ -102,7 +134,7 @@ define('admin/manage/users', [
 						var uid = $(this).parents('[data-uid]').attr('data-uid');
 						api.del('/groups/' + slugify(groupName) + '/membership/' + uid).then(() => {
 							groupCard.remove();
-						});
+						}).catch(app.alertError);
 						return false;
 					});
 				});
@@ -122,7 +154,7 @@ define('admin/manage/users', [
 						return api.put('/users/' + uid + '/ban');
 					})).then(() => {
 						onSuccess('[[admin/manage/users:alerts.ban-success]]', '.ban', true);
-					});
+					}).catch(app.alertError);
 				}
 			});
 		});
@@ -134,7 +166,7 @@ define('admin/manage/users', [
 				return false;	// specifically to keep the menu open
 			}
 
-			Benchpress.parse('admin/partials/temporary-ban', {}, function (html) {
+			Benchpress.render('admin/partials/temporary-ban', {}).then(function (html) {
 				bootbox.dialog({
 					className: 'ban-modal',
 					title: '[[user:ban_account]]',
@@ -161,7 +193,7 @@ define('admin/manage/users', [
 									});
 								})).then(() => {
 									onSuccess('[[admin/manage/users:alerts.ban-success]]', '.ban', true);
-								});
+								}).catch(app.alertError);
 							},
 						},
 					},
@@ -177,7 +209,7 @@ define('admin/manage/users', [
 			}
 
 			Promise.all(uids.map(function (uid) {
-				return api.delete('/users/' + uid + '/ban');
+				return api.del('/users/' + uid + '/ban');
 			})).then(() => {
 				onSuccess('[[admin/manage/users:alerts.unban-success]]', '.ban', false);
 			});
@@ -253,75 +285,50 @@ define('admin/manage/users', [
 			});
 		});
 
-		$('.delete-user').on('click', function () {
+		$('.delete-user').on('click', () => {
+			handleDelete('[[admin/manage/users:alerts.confirm-delete]]', '/account');
+		});
+
+		$('.delete-user-content').on('click', () => {
+			handleDelete('[[admin/manage/users:alerts.confirm-delete-content]]', '/content');
+		});
+
+		$('.delete-user-and-content').on('click', () => {
+			handleDelete('[[admin/manage/users:alerts.confirm-purge]]', '');
+		});
+
+		function handleDelete(confirmMsg, path) {
 			var uids = getSelectedUids();
 			if (!uids.length) {
 				return;
 			}
 
-			bootbox.confirm('[[admin/manage/users:alerts.confirm-delete]]', function (confirm) {
+			bootbox.confirm(confirmMsg, function (confirm) {
 				if (confirm) {
-					socket.emit('admin.user.deleteUsers', uids, function (err) {
-						if (err) {
-							return app.alertError(err.message);
+					Promise.all(uids.map(uid => api.del(`/users/${uid}${path}`, {})
+						.then(() => {
+							if (path !== '/content') {
+								removeRow(uid);
+							}
+						})
+					)).then(() => {
+						if (path !== '/content') {
+							app.alertSuccess('[[admin/manage/users:alerts.delete-success]]');
+						} else {
+							app.alertSuccess('[[admin/manage/users:alerts.delete-content-success]]');
 						}
-
-						app.alertSuccess('[[admin/manage/users:alerts.delete-success]]');
-						removeSelected();
 						unselectAll();
 						if (!$('.users-table [component="user/select/single"]').length) {
 							ajaxify.refresh();
 						}
-					});
+					}).catch(app.alertError);
 				}
 			});
-		});
-
-		$('.delete-user-content').on('click', function () {
-			var uids = getSelectedUids();
-			if (!uids.length) {
-				return;
-			}
-
-			bootbox.confirm('[[admin/manage/users:alerts.confirm-delete-content]]', function (confirm) {
-				if (confirm) {
-					socket.emit('admin.user.deleteUsersContent', uids, function (err) {
-						if (err) {
-							return app.alertError(err.message);
-						}
-
-						app.alertSuccess('[[admin/manage/users:alerts.delete-content-success]]');
-					});
-				}
-			});
-		});
-
-		$('.delete-user-and-content').on('click', function () {
-			var uids = getSelectedUids();
-			if (!uids.length) {
-				return;
-			}
-			bootbox.confirm('[[admin/manage/users:alerts.confirm-purge]]', function (confirm) {
-				if (confirm) {
-					socket.emit('admin.user.deleteUsersAndContent', uids, function (err) {
-						if (err) {
-							return app.alertError(err.message);
-						}
-
-						app.alertSuccess('[[admin/manage/users:alerts.delete-success]]');
-						removeSelected();
-						unselectAll();
-						if (!$('.users-table [component="user/select/single"]').length) {
-							ajaxify.refresh();
-						}
-					});
-				}
-			});
-		});
+		}
 
 		function handleUserCreate() {
 			$('[data-action="create"]').on('click', function () {
-				Benchpress.parse('admin/partials/create_user_modal', {}, function (html) {
+				Benchpress.render('admin/partials/create_user_modal', {}).then(function (html) {
 					var modal = bootbox.dialog({
 						message: html,
 						title: '[[admin/manage/users:alerts.create]]',
@@ -380,13 +387,10 @@ define('admin/manage/users', [
 		}
 
 		handleSearch();
-
 		handleUserCreate();
-
-		handleInvite();
-
 		handleSort();
 		handleFilter();
+		AccountInvite.handle();
 	};
 
 	function handleSearch() {
@@ -416,6 +420,7 @@ define('admin/manage/users', [
 		params.searchBy = query.searchBy;
 		params.query = query.query;
 		params.page = query.page;
+		params.sortBy = params.sortBy || 'lastonline';
 		var qs = decodeURIComponent($.param(params));
 		$.get(config.relative_path + '/api/admin/manage/users?' + qs, renderSearchResults).fail(function (xhrErr) {
 			if (xhrErr && xhrErr.responseJSON && xhrErr.responseJSON.error) {
@@ -425,7 +430,7 @@ define('admin/manage/users', [
 	}
 
 	function renderSearchResults(data) {
-		Benchpress.parse('partials/paginator', { pagination: data.pagination }, function (html) {
+		Benchpress.render('partials/paginator', { pagination: data.pagination }).then(function (html) {
 			$('.pagination-container').replaceWith(html);
 		});
 
@@ -449,24 +454,6 @@ define('admin/manage/users', [
 				).removeClass('hidden');
 				$('#user-notfound-notify').addClass('hidden');
 			}
-		});
-	}
-
-	function handleInvite() {
-		$('[component="user/invite"]').on('click', function () {
-			bootbox.prompt('[[admin/manage/users:alerts.prompt-email]]', function (email) {
-				if (!email) {
-					return;
-				}
-
-				socket.emit('user.invite', email, function (err) {
-					if (err) {
-						return app.alertError(err.message);
-					}
-					app.alertSuccess('[[admin/manage/users:alerts.email-sent-to, ' + email + ']]');
-				});
-			});
-			return false;
 		});
 	}
 

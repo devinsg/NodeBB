@@ -22,7 +22,7 @@ const sockets = require('../socket.io');
 const authenticationController = module.exports;
 
 async function registerAndLoginUser(req, res, userData) {
-	const data = await plugins.fireHook('filter:register.interstitial', {
+	const data = await plugins.hooks.fire('filter:register.interstitial', {
 		userData: userData,
 		interstitials: [],
 	});
@@ -45,7 +45,7 @@ async function registerAndLoginUser(req, res, userData) {
 		return;
 	}
 	const queue = await user.shouldQueueUser(req.ip);
-	const result = await plugins.fireHook('filter:register.shouldQueue', { req: req, res: res, userData: userData, queue: queue });
+	const result = await plugins.hooks.fire('filter:register.shouldQueue', { req: req, res: res, userData: userData, queue: queue });
 	if (result.queue) {
 		return await addToApprovalQueue(req, userData);
 	}
@@ -55,9 +55,13 @@ async function registerAndLoginUser(req, res, userData) {
 		await authenticationController.doLogin(req, uid);
 	}
 
-	user.deleteInvitationKey(userData.email);
+	// Distinguish registrations through invites from direct ones
+	if (userData.token) {
+		await user.joinGroupsFromInvitation(uid, userData.email);
+	}
+	await user.deleteInvitationKey(userData.email);
 	const referrer = req.body.referrer || req.session.referrer || nconf.get('relative_path') + '/';
-	const complete = await plugins.fireHook('filter:register.complete', { uid: uid, referrer: referrer });
+	const complete = await plugins.hooks.fire('filter:register.complete', { uid: uid, referrer: referrer });
 	req.session.returnTo = complete.referrer;
 	return complete;
 }
@@ -74,7 +78,7 @@ authenticationController.register = async function (req, res) {
 
 	const userData = req.body;
 	try {
-		if (registrationType === 'invite-only' || registrationType === 'admin-invite-only') {
+		if (userData.token || registrationType === 'invite-only' || registrationType === 'admin-invite-only') {
 			await user.verifyInvitation(userData);
 		}
 
@@ -94,10 +98,14 @@ authenticationController.register = async function (req, res) {
 			throw new Error('[[user:change_password_error_match]]');
 		}
 
+		if (userData.password.length > 512) {
+			throw new Error('[[error:password-too-long]]');
+		}
+
 		user.isPasswordValid(userData.password);
 
 		res.locals.processLogin = true;	// set it to false in plugin if you wish to just register only
-		await plugins.fireHook('filter:register.check', { req: req, res: res, userData: userData });
+		await plugins.hooks.fire('filter:register.check', { req: req, res: res, userData: userData });
 
 		const data = await registerAndLoginUser(req, res, userData);
 		if (data) {
@@ -114,12 +122,22 @@ authenticationController.register = async function (req, res) {
 async function addToApprovalQueue(req, userData) {
 	userData.ip = req.ip;
 	await user.addToApprovalQueue(userData);
-	return { message: '[[register:registration-added-to-queue]]' };
+	let message = '[[register:registration-added-to-queue]]';
+	if (meta.config.showAverageApprovalTime) {
+		const average_time = await db.getObjectField('registration:queue:approval:times', 'average');
+		if (average_time > 0) {
+			message += ` [[register:registration-queue-average-time, ${Math.floor(average_time / 60)}, ${average_time % 60}]]`;
+		}
+	}
+	if (meta.config.autoApproveTime > 0) {
+		message += ` [[register:registration-queue-auto-approve-time, ${meta.config.autoApproveTime}]]`;
+	}
+	return { message: message };
 }
 
 authenticationController.registerComplete = function (req, res, next) {
 	// For the interstitials that respond, execute the callback with the form body
-	plugins.fireHook('filter:register.interstitial', {
+	plugins.hooks.fire('filter:register.interstitial', {
 		userData: req.session.registration,
 		interstitials: [],
 	}, function (err, data) {
@@ -199,14 +217,14 @@ authenticationController.registerAbort = function (req, res) {
 };
 
 authenticationController.login = function (req, res, next) {
-	if (plugins.hasListeners('action:auth.overrideLogin')) {
+	if (plugins.hooks.hasListeners('action:auth.overrideLogin')) {
 		return continueLogin(req, res, next);
 	}
 
 	var loginWith = meta.config.allowLoginWith || 'username-email';
 	req.body.username = req.body.username.trim();
 
-	plugins.fireHook('filter:login.check', { req: req, res: res, userData: req.body }, (err) => {
+	plugins.hooks.fire('filter:login.check', { req: req, res: res, userData: req.body }, (err) => {
 		if (err) {
 			return helpers.noScriptErrors(req, res, err.message, 403);
 		}
@@ -310,6 +328,7 @@ authenticationController.onSuccessfulLogin = async function (req, uid) {
 		req.loggedIn = true;
 		await meta.blacklist.test(req.ip);
 		await user.logIP(uid, req.ip);
+		await user.bans.unbanIfExpired([uid]);
 
 		req.session.meta = {};
 
@@ -337,7 +356,7 @@ authenticationController.onSuccessfulLogin = async function (req, uid) {
 		// Force session check for all connected socket.io clients with the same session id
 		sockets.in('sess_' + req.sessionID).emit('checkSession', uid);
 
-		plugins.fireHook('action:user.loggedIn', { uid: uid, req: req });
+		plugins.hooks.fire('action:user.loggedIn', { uid: uid, req: req });
 	} catch (err) {
 		req.session.destroy();
 		throw err;
@@ -353,7 +372,7 @@ authenticationController.localLogin = async function (req, username, password, n
 		return next(new Error('[[error:invalid-password]]'));
 	}
 
-	if (password.length > 4096) {
+	if (password.length > 512) {
 		return next(new Error('[[error:password-too-long]]'));
 	}
 
@@ -410,14 +429,14 @@ authenticationController.logout = async function (req, res, next) {
 
 		await user.setUserField(uid, 'lastonline', Date.now() - (meta.config.onlineCutoff * 60000));
 		await db.sortedSetAdd('users:online', Date.now() - (meta.config.onlineCutoff * 60000), uid);
-		await plugins.fireHook('static:user.loggedOut', { req: req, res: res, uid: uid, sessionID: sessionID });
+		await plugins.hooks.fire('static:user.loggedOut', { req: req, res: res, uid: uid, sessionID: sessionID });
 
 		// Force session check for all connected socket.io clients with the same session id
 		sockets.in('sess_' + sessionID).emit('checkSession', 0);
 		const payload = {
 			next: nconf.get('relative_path') + '/',
 		};
-		plugins.fireHook('filter:user.logout', payload);
+		plugins.hooks.fire('filter:user.logout', payload);
 
 		if (req.body.noscript === 'true') {
 			return res.redirect(payload.next);

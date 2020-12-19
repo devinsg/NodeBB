@@ -60,6 +60,7 @@ app.cacheBuster = null;
 				earlyQueue.forEach(function (el) {
 					el.click();
 				});
+				earlyQueue = [];
 			});
 		} else {
 			setTimeout(app.handleEarlyClicks, 50);
@@ -113,16 +114,16 @@ app.cacheBuster = null;
 			if (app.user.uid > 0) {
 				unread.initUnreadTopics();
 			}
-
+			function finishLoad() {
+				$(window).trigger('action:app.load');
+				app.showMessages();
+				appLoaded = true;
+			}
 			overrides.overrideTimeago();
 			if (app.user.timeagoCode && app.user.timeagoCode !== 'en') {
-				require(['timeago/locales/jquery.timeago.' + app.user.timeagoCode], function () {
-					$(window).trigger('action:app.load');
-					appLoaded = true;
-				});
+				require(['timeago/locales/jquery.timeago.' + app.user.timeagoCode], finishLoad);
 			} else {
-				$(window).trigger('action:app.load');
-				appLoaded = true;
+				finishLoad();
 			}
 		});
 	};
@@ -179,8 +180,9 @@ app.cacheBuster = null;
 		message = message.message || message;
 
 		if (message === '[[error:invalid-session]]') {
+			app.handleInvalidSession();
 			app.logout(false);
-			return app.handleInvalidSession();
+			return;
 		}
 
 		app.alert({
@@ -193,7 +195,7 @@ app.cacheBuster = null;
 	};
 
 	app.handleInvalidSession = function () {
-		if (app.flags._logout) {
+		if (app.flags._login || app.flags._logout) {
 			return;
 		}
 
@@ -244,7 +246,10 @@ app.cacheBuster = null;
 		$('#main-nav li')
 			.removeClass('active')
 			.find('a')
-			.filter(function (i, x) { return window.location.pathname.startsWith(x.getAttribute('href')); })
+			.filter(function (i, x) {
+				return window.location.pathname === x.pathname ||
+					window.location.pathname.startsWith(x.pathname + '/');
+			})
 			.parent()
 			.addClass('active');
 	}
@@ -284,11 +289,6 @@ app.cacheBuster = null;
 		app.createUserTooltips($('#content'));
 
 		app.createStatusTooltips();
-
-		// Scroll back to top of page
-		if (!ajaxify.isCold()) {
-			window.scrollTo(0, 0);
-		}
 	};
 
 	app.showMessages = function () {
@@ -445,6 +445,9 @@ app.cacheBuster = null;
 	}
 
 	app.enableTopicSearch = function (options) {
+		if (!config.searchEnabled || !app.user.privileges['search:content']) {
+			return;
+		}
 		/* eslint-disable-next-line */
 		var searchOptions = Object.assign({ in: 'titles' }, options.searchOptions);
 		var quickSearchResults = options.searchElements.resultEl;
@@ -732,24 +735,19 @@ app.cacheBuster = null;
 
 	app.parseAndTranslate = function (template, blockName, data, callback) {
 		require(['translator', 'benchpress'], function (translator, Benchpress) {
-			function translate(html, callback) {
-				translator.translate(html, function (translatedHTML) {
-					translatedHTML = translator.unescape(translatedHTML);
-					callback($(translatedHTML));
-				});
-			}
-
-			if (typeof blockName === 'string') {
-				Benchpress.parse(template, blockName, data, function (html) {
-					translate(html, callback);
-				});
-			} else {
+			if (typeof blockName !== 'string') {
 				callback = data;
 				data = blockName;
-				Benchpress.parse(template, data, function (html) {
-					translate(html, callback);
-				});
+				blockName = undefined;
 			}
+
+			Benchpress.render(template, data, blockName)
+				.then(rendered => translator.translate(rendered))
+				.then(translated => translator.unescape(translated))
+				.then(
+					result => setTimeout(callback, 0, $(result)),
+					err => console.error(err)
+				);
 		});
 	};
 
@@ -788,7 +786,7 @@ app.cacheBuster = null;
 
 	function registerServiceWorker() {
 		if ('serviceWorker' in navigator) {
-			navigator.serviceWorker.register('/service-worker.js')
+			navigator.serviceWorker.register(config.relative_path + '/service-worker.js')
 				.then(function () {
 					console.info('ServiceWorker registration succeeded.');
 				}).catch(function (err) {

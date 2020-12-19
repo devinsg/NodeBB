@@ -3,6 +3,14 @@ put:
     - posts
   summary: edit a post
   description: This operation edits a post
+  parameters:
+    - in: path
+      name: pid
+      schema:
+        type: string
+      required: true
+      description: a valid post id
+      example: 1
   requestBody:
     required: true
     content:
@@ -13,14 +21,13 @@ put:
             content:
               type: string
               description: New post content
+              example: New post content
             title:
               type: string
               description: Topic title, only accepted for main posts
+              example: New title
           required:
             - content
-        example:
-          content: 'New post content'
-          title: 'New title'
   responses:
     '200':
       description: Post successfully edited
@@ -32,12 +39,27 @@ put:
               status:
                 $ref: ../../components/schemas/Status.yaml#/Status
               response:
-                $ref: ../../components/schemas/PostsObject.yaml#/PostsObject
+                allOf:
+                  - $ref: ../../components/schemas/PostObject.yaml#/PostObject
+                  - type: object
+                    properties:
+                      edited:
+                        type: boolean
+                      deleterUid:
+                        type: number
 delete:
   tags:
     - posts
   summary: purge a post
   description: This operation purges a post.
+  parameters:
+    - in: path
+      name: pid
+      schema:
+        type: string
+      required: true
+      description: a valid post id
+      example: 1
   responses:
     '200':
       description: Post successfully purged

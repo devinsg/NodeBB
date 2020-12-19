@@ -2,6 +2,7 @@
 
 const winston = require('winston');
 
+const categories = require('../categories');
 const plugins = require('../plugins');
 const slugify = require('../slugify');
 const db = require('../database');
@@ -18,11 +19,10 @@ module.exports = function (Groups) {
 			throw new Error('[[error:no-group]]');
 		}
 
-		const result = await plugins.fireHook('filter:group.update', {
+		({ values } = await plugins.hooks.fire('filter:group.update', {
 			groupName: groupName,
 			values: values,
-		});
-		values = result.values;
+		}));
 
 		const payload = {
 			description: values.description || '',
@@ -66,10 +66,16 @@ module.exports = function (Groups) {
 		if (values.hasOwnProperty('hidden')) {
 			await updateVisibility(groupName, values.hidden);
 		}
+
+		if (values.hasOwnProperty('memberPostCids')) {
+			const validCids = await categories.getCidsByPrivilege('categories:cid', groupName, 'topics:read');
+			payload.memberPostCids = values.memberPostCids.filter(cid => validCids.includes(cid)).join(',') || '';
+		}
+
 		await db.setObject('group:' + groupName, payload);
 		await Groups.renameGroup(groupName, values.name);
 
-		plugins.fireHook('action:group.update', {
+		plugins.hooks.fire('action:group.update', {
 			name: groupName,
 			values: values,
 		});
@@ -193,11 +199,11 @@ module.exports = function (Groups) {
 		await renameGroupsMember(['groups:createtime', 'groups:visible:createtime', 'groups:visible:memberCount'], oldName, newName);
 		await renameGroupsMember(['groups:visible:name'], oldName.toLowerCase() + ':' + oldName, newName.toLowerCase() + ':' + newName);
 
-		plugins.fireHook('action:group.rename', {
+		plugins.hooks.fire('action:group.rename', {
 			old: oldName,
 			new: newName,
 		});
-		Groups.resetCache();
+		Groups.cache.reset();
 	};
 
 	async function updateMemberGroupTitles(oldName, newName) {
@@ -232,7 +238,7 @@ module.exports = function (Groups) {
 				navItem.groups.splice(navItem.groups.indexOf(oldName), 1, newName);
 			}
 		});
-
+		navigation.unescapeFields(navItems);
 		await navigation.save(navItems);
 	}
 

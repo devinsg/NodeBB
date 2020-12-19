@@ -240,6 +240,21 @@ describe('socket.io', function () {
 
 	describe('validation emails', function () {
 		var meta = require('../src/meta');
+		var plugins = require('../src/plugins');
+
+		async function dummyEmailerHook(data) {
+			// pretend to handle sending emails
+		}
+		before(function () {
+			// Attach an emailer hook so related requests do not error
+			plugins.registerHook('emailer-test', {
+				hook: 'filter:email.send',
+				method: dummyEmailerHook,
+			});
+		});
+		after(function () {
+			plugins.unregisterHook('emailer-test', 'filter:email.send');
+		});
 
 		it('should validate emails', function (done) {
 			socketAdmin.user.validateEmail({ uid: adminUid }, [regularUid], function (err) {
@@ -315,8 +330,7 @@ describe('socket.io', function () {
 	});
 
 	it('should get server time', function (done) {
-		var socketMeta = require('../src/socket.io/meta');
-		socketMeta.getServerTime({ uid: 1 }, null, function (err, time) {
+		io.emit('admin.getServerTime', null, function (err, time) {
 			assert.ifError(err);
 			assert(time);
 			done();
@@ -395,7 +409,7 @@ describe('socket.io', function () {
 				setTimeout(function () {
 					socketAdmin.rooms.getAll({ uid: 10 }, {}, function (err, data) {
 						assert.ifError(err);
-						assert.equal(data.users.category, 1);
+						assert.equal(data.users.category, 1, JSON.stringify(data, null, 4));
 						done();
 					});
 				}, 1000);

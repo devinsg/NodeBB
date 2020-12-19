@@ -34,9 +34,6 @@ JS.scripts = {
 		'node_modules/jquery-serializeobject/jquery.serializeObject.js',
 
 		'public/vendor/bootbox/wrapper.js',
-		// TODO: remove xregexp on 1.16.0, it is loaded via require
-		'public/vendor/xregexp/xregexp.js',
-		'public/vendor/xregexp/unicode/unicode-base.js',
 
 		'public/src/utils.js',
 		'public/src/sockets.js',
@@ -245,22 +242,22 @@ async function requirejsOptimize(target) {
 	};
 	const bundledModules = [
 		{
-			baseUrl: './node_modules',
+			baseUrl: path.join(basePath, 'node_modules'),
 			name: 'timeago/jquery.timeago',
 		},
 		{
-			baseUrl: './node_modules/nprogress',
+			baseUrl: path.join(basePath, 'node_modules/nprogress'),
 			name: 'nprogress',
 		},
 		{
-			baseUrl: './node_modules/bootbox',
+			baseUrl: path.join(basePath, 'node_modules/bootbox'),
 			name: 'bootbox',
 		},
 	];
 	const targetModules = {
 		admin: [
 			{
-				baseUrl: './node_modules/sortablejs',
+				baseUrl: path.join(basePath, 'node_modules/sortablejs'),
 				name: 'Sortable',
 			},
 		],
@@ -338,7 +335,6 @@ JS.buildBundle = async function (target, fork) {
 	};
 	await requirejsOptimize(target);
 	const files = await getBundleScriptList(target);
-	await mkdirp(path.join(__dirname, '../../build/public'));
 
 	files.push({
 		srcPath: path.join(__dirname, '../../build/public/rjs-bundle-' + target + '.js'),

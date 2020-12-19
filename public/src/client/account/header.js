@@ -116,11 +116,14 @@ define('forum/account/header', [
 	}
 
 	function toggleFollow(type) {
-		api[type === 'follow' ? 'put' : 'delete']('/users/' + ajaxify.data.uid + '/follow', undefined, () => {
+		api[type === 'follow' ? 'put' : 'delete']('/users/' + ajaxify.data.uid + '/follow', undefined, function (err) {
+			if (err) {
+				return app.alertError(err);
+			}
 			components.get('account/follow').toggleClass('hide', type === 'follow');
 			components.get('account/unfollow').toggleClass('hide', type === 'unfollow');
 			app.alertSuccess('[[global:alert.' + type + ', ' + ajaxify.data.username + ']]');
-		}, 'default');
+		});
 
 		return false;
 	}
@@ -128,7 +131,7 @@ define('forum/account/header', [
 	function banAccount(theirid, onSuccess) {
 		theirid = theirid || ajaxify.data.theirid;
 
-		Benchpress.parse('admin/partials/temporary-ban', {}, function (html) {
+		Benchpress.render('admin/partials/temporary-ban', {}).then(function (html) {
 			bootbox.dialog({
 				className: 'ban-modal',
 				title: '[[user:ban_account]]',
@@ -158,7 +161,7 @@ define('forum/account/header', [
 								}
 
 								ajaxify.refresh();
-							});
+							}).catch(app.alertError);
 						},
 					},
 				},
@@ -169,7 +172,7 @@ define('forum/account/header', [
 	function unbanAccount() {
 		api.del('/users/' + ajaxify.data.theirid + '/ban').then(() => {
 			ajaxify.refresh();
-		});
+		}).catch(app.alertError);
 	}
 
 	function flagAccount() {

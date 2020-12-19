@@ -42,18 +42,9 @@ socket = window.socket;
 	function addHandlers() {
 		socket.on('connect', onConnect);
 
-		socket.on('reconnecting', function () {
-			// Wait 2s before firing
-			setTimeout(function () {
-				if (socket.disconnected) {
-					onReconnecting();
-				}
-			}, 2000);
-		});
-
 		socket.on('disconnect', onDisconnect);
 
-		socket.on('reconnect_failed', function () {
+		socket.io.on('reconnect_failed', function () {
 			// Wait ten times the reconnection delay and then start over
 			setTimeout(socket.connect.bind(socket), parseInt(config.reconnectionDelay, 10) * 10);
 		});
@@ -69,6 +60,9 @@ socket = window.socket;
 		});
 
 		socket.on('event:banned', onEventBanned);
+		socket.on('event:logout', function () {
+			app.logout();
+		});
 		socket.on('event:alert', function (params) {
 			app.alert(params);
 		});
@@ -101,7 +95,6 @@ socket = window.socket;
 
 	function onConnect() {
 		if (!reconnecting) {
-			app.showMessages();
 			$(window).trigger('action:connected');
 		}
 
@@ -176,11 +169,17 @@ socket = window.socket;
 	}
 
 	function onDisconnect() {
+		setTimeout(function () {
+			if (socket.disconnected) {
+				onReconnecting();
+			}
+		}, 2000);
+
 		$(window).trigger('action:disconnected');
 	}
 
 	function onEventBanned(data) {
-		var message = data.until ? '[[error:user-banned-reason-until, ' + $.timeago(data.until) + ', ' + data.reason + ']]' : '[[error:user-banned-reason, ' + data.reason + ']]';
+		var message = data.until ? '[[error:user-banned-reason-until, ' + utils.toISOString(data.until) + ', ' + data.reason + ']]' : '[[error:user-banned-reason, ' + data.reason + ']]';
 
 		bootbox.alert({
 			title: '[[error:user-banned]]',

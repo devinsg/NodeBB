@@ -10,6 +10,18 @@ put:
         type: string
       required: true
       description: backend id of the setting to update
+      example: maximumRelatedTopics
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          type: object
+          properties:
+            value:
+              type: string
+              description: the value of the new setting
+              example: 2
   responses:
     '200':
       description: Admin setting updated

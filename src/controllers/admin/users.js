@@ -1,6 +1,5 @@
 'use strict';
 
-const nconf = require('nconf');
 const validator = require('validator');
 
 const user = require('../../user');
@@ -9,6 +8,7 @@ const db = require('../../database');
 const pagination = require('../../pagination');
 const events = require('../../events');
 const plugins = require('../../plugins');
+const privileges = require('../../privileges');
 const utils = require('../../utils');
 
 const usersController = module.exports;
@@ -45,7 +45,7 @@ async function getUsers(req, res) {
 			postcount: 'users:postcount',
 			reputation: 'users:reputation',
 			joindate: 'users:joindate',
-			online: 'users:online',
+			lastonline: 'users:online',
 			flags: 'users:flags',
 		};
 
@@ -64,7 +64,7 @@ async function getUsers(req, res) {
 		}
 		if (!set.length) {
 			set.push('users:online');
-			sortBy = 'online';
+			sortBy = 'lastonline';
 		}
 		return set.length > 1 ? set : set[0];
 	}
@@ -115,7 +115,7 @@ async function getUsers(req, res) {
 		getUsersWithFields(set),
 	]);
 
-	render(req, res, {
+	await render(req, res, {
 		users: users.filter(user => user && parseInt(user.uid, 10)),
 		page: page,
 		pageCount: Math.max(1, Math.ceil(count / resultsPerPage)),
@@ -147,7 +147,7 @@ usersController.search = async function (req, res) {
 			if (!query || query.length < 2) {
 				return [];
 			}
-			hardCap = hardCap || resultsPerPage * 10;
+			query = String(query).toLowerCase();
 			if (!query.endsWith('*')) {
 				query += '*';
 			}
@@ -155,7 +155,7 @@ usersController.search = async function (req, res) {
 			const data = await db.getSortedSetScan({
 				key: searchBy + ':sorted',
 				match: query,
-				limit: hardCap,
+				limit: hardCap || (resultsPerPage * 10),
 			});
 			return data.map(data => data.split(':').pop());
 		},
@@ -176,7 +176,7 @@ usersController.search = async function (req, res) {
 	searchData.resultsPerPage = resultsPerPage;
 	searchData.sortBy = req.query.sortBy;
 	searchData.reverse = reverse;
-	render(req, res, searchData);
+	await render(req, res, searchData);
 };
 
 usersController.registrationQueue = async function (req, res) {
@@ -188,7 +188,7 @@ usersController.registrationQueue = async function (req, res) {
 	const data = await utils.promiseParallel({
 		registrationQueueCount: db.sortedSetCard('registration:queue'),
 		users: user.getRegistrationQueue(start, stop),
-		customHeaders: plugins.fireHook('filter:admin.registrationQueue.customHeaders', { headers: [] }),
+		customHeaders: plugins.hooks.fire('filter:admin.registrationQueue.customHeaders', { headers: [] }),
 		invites: getInvites(),
 	});
 	var pageCount = Math.max(1, Math.ceil(data.registrationQueueCount / itemsPerPage));
@@ -208,7 +208,7 @@ async function getInvites() {
 	});
 
 	async function getUsernamesByEmails(emails) {
-		const uids = await db.sortedSetScore('email:uid', emails.map(email => String(email).toLowerCase()));
+		const uids = await db.sortedSetScores('email:uid', emails.map(email => String(email).toLowerCase()));
 		const usernames = await user.getUsersFields(uids, ['username']);
 		return usernames.map(user => user.username);
 	}
@@ -226,7 +226,7 @@ async function getInvites() {
 	return invitations;
 }
 
-function render(req, res, data) {
+async function render(req, res, data) {
 	data.pagination = pagination.create(data.page, data.pageCount, req.query);
 
 	const registrationType = meta.config.registrationType;
@@ -241,22 +241,37 @@ function render(req, res, data) {
 	filterBy.forEach(function (filter) {
 		data['filterBy_' + validator.escape(String(filter))] = true;
 	});
+	data.userCount = parseInt(await db.getObjectField('global', 'userCount'), 10);
+	if (data.adminInviteOnly) {
+		data.showInviteButton = await privileges.users.isAdministrator(req.uid);
+	} else {
+		data.showInviteButton = await privileges.users.hasInvitePrivilege(req.uid);
+	}
+
 	res.render('admin/manage/users', data);
 }
 
-usersController.getCSV = async function (req, res) {
-	var referer = req.headers.referer;
-
-	if (!referer || !referer.replace(nconf.get('url'), '').startsWith('/admin/manage/users')) {
-		return res.status(403).send('[[error:invalid-origin]]');
-	}
-	events.log({
+usersController.getCSV = async function (req, res, next) {
+	await events.log({
 		type: 'getUsersCSV',
 		uid: req.uid,
 		ip: req.ip,
 	});
-	const data = await user.getUsersCSV();
-	res.attachment('users.csv');
-	res.setHeader('Content-Type', 'text/csv');
-	res.end(data);
+	const path = require('path');
+	const { baseDir } = require('../../constants').paths;
+	res.sendFile('users.csv', {
+		root: path.join(baseDir, 'build/export'),
+		headers: {
+			'Content-Type': 'text/csv',
+			'Content-Disposition': 'attachment; filename=users.csv',
+		},
+	}, function (err) {
+		if (err) {
+			if (err.code === 'ENOENT') {
+				res.locals.isAPI = false;
+				return next();
+			}
+			return next(err);
+		}
+	});
 };

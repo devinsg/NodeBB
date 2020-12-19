@@ -69,8 +69,6 @@ module.exports = function (privileges) {
 		'admin.user.loadGroups': 'admin:users',
 		'admin.groups.join': 'admin:users',
 		'admin.groups.leave': 'admin:users',
-		'user.banUsers': 'admin:users',
-		'user.unbanUsers': 'admin:users',
 		'admin.user.resetLockouts': 'admin:users',
 		'admin.user.validateEmail': 'admin:users',
 		'admin.user.sendValidationEmail': 'admin:users',
@@ -122,14 +120,14 @@ module.exports = function (privileges) {
 
 		async function getLabels() {
 			return await utils.promiseParallel({
-				users: plugins.fireHook('filter:privileges.admin.list_human', privilegeLabels.slice()),
-				groups: plugins.fireHook('filter:privileges.admin.groups.list_human', privilegeLabels.slice()),
+				users: plugins.hooks.fire('filter:privileges.admin.list_human', privilegeLabels.slice()),
+				groups: plugins.hooks.fire('filter:privileges.admin.groups.list_human', privilegeLabels.slice()),
 			});
 		}
 
 		const keys = await utils.promiseParallel({
-			users: plugins.fireHook('filter:privileges.admin.list', userPrivilegeList.slice()),
-			groups: plugins.fireHook('filter:privileges.admin.groups.list', groupPrivilegeList.slice()),
+			users: plugins.hooks.fire('filter:privileges.admin.list', userPrivilegeList.slice()),
+			groups: plugins.hooks.fire('filter:privileges.admin.groups.list', groupPrivilegeList.slice()),
 		});
 
 		const payload = await utils.promiseParallel({
@@ -146,7 +144,7 @@ module.exports = function (privileges) {
 
 	privileges.admin.get = async function (uid) {
 		const [userPrivileges, isAdministrator] = await Promise.all([
-			helpers.isUserAllowedTo(privileges.admin.userPrivilegeList, uid, 0),
+			helpers.isAllowedTo(privileges.admin.userPrivilegeList, uid, 0),
 			user.isAdministrator(uid),
 		]);
 
@@ -154,12 +152,15 @@ module.exports = function (privileges) {
 		const privData = _.zipObject(privileges.admin.userPrivilegeList, combined);
 
 		privData.superadmin = isAdministrator;
-		return await plugins.fireHook('filter:privileges.admin.get', privData);
+		return await plugins.hooks.fire('filter:privileges.admin.get', privData);
 	};
 
 	privileges.admin.can = async function (privilege, uid) {
-		const isUserAllowedTo = await helpers.isUserAllowedTo(privilege, uid, [0]);
-		return isUserAllowedTo[0];
+		const [isUserAllowedTo, isAdministrator] = await Promise.all([
+			helpers.isAllowedTo(privilege, uid, [0]),
+			user.isAdministrator(uid),
+		]);
+		return isAdministrator || isUserAllowedTo[0];
 	};
 
 	// privileges.admin.canGroup = async function (privilege, groupName) {
@@ -168,7 +169,7 @@ module.exports = function (privileges) {
 
 	privileges.admin.give = async function (privileges, groupName) {
 		await helpers.giveOrRescind(groups.join, privileges, 'admin', groupName);
-		plugins.fireHook('action:privileges.admin.give', {
+		plugins.hooks.fire('action:privileges.admin.give', {
 			privileges: privileges,
 			groupNames: Array.isArray(groupName) ? groupName : [groupName],
 		});
@@ -176,7 +177,7 @@ module.exports = function (privileges) {
 
 	privileges.admin.rescind = async function (privileges, groupName) {
 		await helpers.giveOrRescind(groups.leave, privileges, 'admin', groupName);
-		plugins.fireHook('action:privileges.admin.rescind', {
+		plugins.hooks.fire('action:privileges.admin.rescind', {
 			privileges: privileges,
 			groupNames: Array.isArray(groupName) ? groupName : [groupName],
 		});

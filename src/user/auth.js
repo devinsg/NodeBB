@@ -31,7 +31,7 @@ module.exports = function (User) {
 
 		await db.delete('loginAttempts:' + uid);
 		await db.pexpire('lockout:' + uid, duration);
-		events.log({
+		await events.log({
 			type: 'account-locked',
 			uid: uid,
 			ip: ip,
@@ -107,8 +107,8 @@ module.exports = function (User) {
 			return;
 		}
 		await cleanExpiredSessions(uid);
-		await revokeSessionsAboveThreshold(uid, meta.config.maxUserSessions);
 		await db.sortedSetAdd('uid:' + uid + ':sessions', Date.now(), sessionId);
+		await revokeSessionsAboveThreshold(uid, meta.config.maxUserSessions);
 	};
 
 	async function revokeSessionsAboveThreshold(uid, maxUserSessions) {

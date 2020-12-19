@@ -4,11 +4,13 @@
 	"group-privileges": "Grup Ayrıcalıkları",
 	"user-privileges": "Kullanıcı Ayrıcalıkları",
 	"edit-privileges": "Ayrıcalıkları Düzenle",
+  	"select-clear-all": "Select/Clear All",
 	"chat": "Sohbet",
 	"upload-images": "Resim Yükle",
 	"upload-files": "Dosya Yükle",
 	"signature": "İmza",
 	"ban": "Ban",
+	"invite": "Davet et",
 	"search-content": "İçerik Arama",
 	"search-users": "Kullanıcıları Ara",
 	"search-tags": "Etiketleri Ara",
@@ -49,5 +51,5 @@
 	"alert.confirm-copyToChildren": "Bu ayrıcalıkları <strong>tüm alt (aşağı) kategoriler</strong> için uygulamaya emin misiniz?",
 	"alert.confirm-copyToChildrenGroup": "Bu grup ayrıcalıklarını <strong>tüm alt (aşağı) kategoriler</strong> uygulamaya emin misiniz?",
 	"alert.no-undo": "<em>Bu işlem geri alınamaz.</em>",
-	"alert.admin-warning": "Administrators implicitly get all privileges"
+	"alert.admin-warning": "Yöneticiler dolaylı olarak tüm ayrıcalıklara sahiptirler"
 }

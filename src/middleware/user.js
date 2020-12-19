@@ -19,7 +19,7 @@ const controllers = {
 
 const passportAuthenticateAsync = function (req, res) {
 	return new Promise((resolve, reject) => {
-		passport.authenticate('bearer', { session: false }, (err, user) => {
+		passport.authenticate('core.api', { session: false }, (err, user) => {
 			if (err) {
 				reject(err);
 			} else {
@@ -34,6 +34,7 @@ module.exports = function (middleware) {
 		const loginAsync = util.promisify(req.login).bind(req);
 
 		if (req.loggedIn) {
+			// If authenticated via cookie (express-session), protect routes with CSRF checking
 			if (res.locals.isAPI) {
 				await middleware.applyCSRFasync(req, res);
 			}
@@ -69,7 +70,7 @@ module.exports = function (middleware) {
 			}
 		}
 
-		await plugins.fireHook('response:middleware.authenticate', {
+		await plugins.hooks.fire('response:middleware.authenticate', {
 			req: req,
 			res: res,
 			next: function () {},	// no-op for backwards compatibility
@@ -200,7 +201,11 @@ module.exports = function (middleware) {
 	});
 
 	middleware.isAdmin = helpers.try(async function isAdmin(req, res, next) {
+		// TODO: Remove in v1.16.0
+		winston.warn('[middleware] middleware.isAdmin deprecated, use middleware.admin.checkPrivileges instead');
+
 		const isAdmin = await user.isAdministrator(req.uid);
+
 		if (!isAdmin) {
 			return controllers.helpers.notAllowed(req, res);
 		}

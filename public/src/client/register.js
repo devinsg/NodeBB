@@ -2,8 +2,8 @@
 
 
 define('forum/register', [
-	'translator', 'zxcvbn', 'slugify', 'jquery-form',
-], function (translator, zxcvbn, slugify) {
+	'translator', 'zxcvbn', 'slugify', 'api', 'jquery-form',
+], function (translator, zxcvbn, slugify, api) {
 	var Register = {};
 	var validationError = false;
 	var successIcon = '';
@@ -151,25 +151,22 @@ define('forum/register', [
 		callback = callback || function () {};
 
 		var username_notify = $('#username-notify');
-
-		if (username.length < ajaxify.data.minimumUsernameLength) {
+		var userslug = slugify(username);
+		if (username.length < ajaxify.data.minimumUsernameLength || userslug.length < ajaxify.data.minimumUsernameLength) {
 			showError(username_notify, '[[error:username-too-short]]');
 		} else if (username.length > ajaxify.data.maximumUsernameLength) {
 			showError(username_notify, '[[error:username-too-long]]');
-		} else if (!utils.isUserNameValid(username) || !slugify(username)) {
+		} else if (!utils.isUserNameValid(username) || !userslug) {
 			showError(username_notify, '[[error:invalid-username]]');
 		} else {
-			socket.emit('user.exists', {
-				username: username,
-			}, function (err, exists) {
-				if (err) {
-					return app.alertError(err.message);
-				}
-
-				if (exists) {
-					showError(username_notify, '[[error:username-taken]]');
-				} else {
+			Promise.allSettled([
+				api.head(`/users/bySlug/${username}`, {}),
+				api.head(`/groups/${username}`, {}),
+			]).then((results) => {
+				if (results.every(obj => obj.status === 'rejected')) {
 					showSuccess(username_notify, successIcon);
+				} else {
+					showError(username_notify, '[[error:username-taken]]');
 				}
 
 				callback();

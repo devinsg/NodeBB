@@ -1,6 +1,8 @@
 'use strict';
 
 const validator = require('validator');
+const winston = require('winston');
+const cronJob = require('cron').CronJob;
 
 const db = require('../database');
 const meta = require('../meta');
@@ -12,6 +14,10 @@ const slugify = require('../slugify');
 const plugins = require('../plugins');
 
 module.exports = function (User) {
+	new cronJob('0 * * * *', function () {
+		User.autoApprove();
+	}, null, true);
+
 	User.addToApprovalQueue = async function (userData) {
 		userData.username = userData.username.trim();
 		userData.userslug = slugify(userData.username);
@@ -23,7 +29,7 @@ module.exports = function (User) {
 			ip: userData.ip,
 			hashedPassword: hashedPassword,
 		};
-		const results = await plugins.fireHook('filter:user.addToApprovalQueue', { data: data, userData: userData });
+		const results = await plugins.hooks.fire('filter:user.addToApprovalQueue', { data: data, userData: userData });
 		await db.setObject('registration:queue:name:' + userData.username, results.data);
 		await db.sortedSetAdd('registration:queue', Date.now(), userData.username);
 		await sendNotificationToAdmins(userData.username);
@@ -59,18 +65,24 @@ module.exports = function (User) {
 		if (!userData) {
 			throw new Error('[[error:invalid-data]]');
 		}
-
+		const creation_time = await db.sortedSetScore('registration:queue', username);
 		const uid = await User.create(userData);
-		await User.setUserField(uid, 'password', userData.hashedPassword);
+		await User.setUserFields(uid, {
+			password: userData.hashedPassword,
+			'password:shaWrapped': 1,
+		});
 		await removeFromQueue(username);
 		await markNotificationRead(username);
-		await plugins.fireHook('filter:register.complete', { uid: uid });
+		await plugins.hooks.fire('filter:register.complete', { uid: uid });
 		await emailer.send('registration_accepted', uid, {
 			username: username,
 			subject: '[[email:welcome-to, ' + (meta.config.title || meta.config.browserTitle || 'NodeBB') + ']]',
 			template: 'registration_accepted',
 			uid: uid,
-		});
+		}).catch(err => winston.error('[emailer.send] ' + err.stack));
+		const total = await db.incrObjectField('registration:queue:approval:times', 'totalTime', Math.floor((Date.now() - creation_time) / 60000));
+		const counter = await db.incrObjectField('registration:queue:approval:times', 'counter', 1);
+		await db.setObjectField('registration:queue:approval:times', 'average', total / counter);
 		return uid;
 	};
 
@@ -132,7 +144,7 @@ module.exports = function (User) {
 			 */
 		}));
 
-		const results = await plugins.fireHook('filter:user.getRegistrationQueue', { users: users });
+		const results = await plugins.hooks.fire('filter:user.getRegistrationQueue', { users: users });
 		return results.users;
 	};
 
@@ -140,4 +152,16 @@ module.exports = function (User) {
 		const uids = await User.getUidsFromSet('ip:' + user.ip + ':uid', 0, -1);
 		user.ipMatch = await User.getUsersFields(uids, ['uid', 'username', 'picture']);
 	}
+
+	User.autoApprove = async function () {
+		if (meta.config.autoApproveTime <= 0) {
+			return;
+		}
+		const users = await db.getSortedSetRevRangeWithScores('registration:queue', 0, -1);
+		const now = Date.now();
+		for (const user of users.filter(user => now - user.score >= meta.config.autoApproveTime * 3600000)) {
+			// eslint-disable-next-line no-await-in-loop
+			await User.acceptRegistration(user.value);
+		}
+	};
 };

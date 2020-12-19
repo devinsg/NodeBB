@@ -8,15 +8,6 @@ define('forum/topic/votes', [
 
 	Votes.addVoteHandler = function () {
 		components.get('topic').on('mouseenter', '[data-pid] [component="post/vote-count"]', loadDataAndCreateTooltip);
-		components.get('topic').on('mouseout', '[data-pid] [component="post/vote-count"]', function () {
-			var el = $(this).parent();
-			el.on('shown.bs.tooltip', function () {
-				$('.tooltip').tooltip('destroy');
-				el.off('shown.bs.tooltip');
-			});
-
-			$('.tooltip').tooltip('destroy');
-		});
 	};
 
 	function loadDataAndCreateTooltip(e) {
@@ -24,10 +15,8 @@ define('forum/topic/votes', [
 
 		var $this = $(this);
 		var el = $this.parent();
+		el.find('.tooltip').css('display', 'none');
 		var pid = el.parents('[data-pid]').attr('data-pid');
-
-		$('.tooltip').tooltip('destroy');
-		$this.off('mouseenter', loadDataAndCreateTooltip);
 
 		socket.emit('posts.getUpvoters', [pid], function (err, data) {
 			if (err) {
@@ -35,9 +24,8 @@ define('forum/topic/votes', [
 			}
 
 			if (data.length) {
-				createTooltip(el, data[0]);
+				createTooltip($this, data[0]);
 			}
-			$this.off('mouseenter').on('mouseenter', loadDataAndCreateTooltip);
 		});
 		return false;
 	}
@@ -45,8 +33,10 @@ define('forum/topic/votes', [
 	function createTooltip(el, data) {
 		function doCreateTooltip(title) {
 			el.attr('title', title).tooltip('fixTitle').tooltip('show');
+			el.parent().find('.tooltip').css('display', '');
 		}
-		var usernames = data.usernames;
+		var usernames = data.usernames
+			.filter(name => name !== '[[global:former_user]]');
 		if (!usernames.length) {
 			return;
 		}
@@ -68,14 +58,22 @@ define('forum/topic/votes', [
 		var currentState = post.find(className).length;
 
 		const method = currentState ? 'del' : 'put';
-		api[method](`/posts/${post.attr('data-pid')}/vote`, {
+		var pid = post.attr('data-pid');
+		api[method](`/posts/${pid}/vote`, {
 			delta: delta,
-		}, undefined, (err) => {
-			app.alertError(err.status.message);
-
-			if (err.status.message === '[[error:not-logged-in]]') {
-				ajaxify.go('login');
+		}, function (err) {
+			if (err) {
+				if (err.message === '[[error:not-logged-in]]') {
+					ajaxify.go('login');
+					return;
+				}
+				return app.alertError(err.message);
 			}
+			$(window).trigger('action:post.toggleVote', {
+				pid: pid,
+				delta: delta,
+				unvote: method === 'del',
+			});
 		});
 
 		return false;
@@ -92,18 +90,16 @@ define('forum/topic/votes', [
 				return app.alertError(err.message);
 			}
 
-			Benchpress.parse('partials/modals/votes_modal', data, function (html) {
-				translator.translate(html, function (translated) {
-					var dialog = bootbox.dialog({
-						title: '[[global:voters]]',
-						message: translated,
-						className: 'vote-modal',
-						show: true,
-					});
+			app.parseAndTranslate('partials/modals/votes_modal', data, function (html) {
+				var dialog = bootbox.dialog({
+					title: '[[global:voters]]',
+					message: html,
+					className: 'vote-modal',
+					show: true,
+				});
 
-					dialog.on('click', function () {
-						dialog.modal('hide');
-					});
+				dialog.on('click', function () {
+					dialog.modal('hide');
 				});
 			});
 		});

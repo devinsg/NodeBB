@@ -40,8 +40,8 @@ module.exports = function (Groups) {
 			db.deleteObjectFields('groupslug:groupname', fields),
 			removeGroupsFromPrivilegeGroups(groupNames),
 		]);
-		Groups.resetCache();
-		plugins.fireHook('action:groups.destroy', { groups: groupsData });
+		Groups.cache.reset();
+		plugins.hooks.fire('action:groups.destroy', { groups: groupsData });
 	};
 
 	async function removeGroupsFromPrivilegeGroups(groupNames) {

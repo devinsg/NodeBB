@@ -14,6 +14,8 @@ const meta = require('./meta');
 
 const Analytics = module.exports;
 
+const secret = nconf.get('secret');
+
 const counters = {};
 
 let pageViews = 0;
@@ -39,7 +41,7 @@ Analytics.init = async function () {
 Analytics.increment = function (keys, callback) {
 	keys = Array.isArray(keys) ? keys : [keys];
 
-	plugins.fireHook('action:analytics.increment', { keys: keys });
+	plugins.hooks.fire('action:analytics.increment', { keys: keys });
 
 	keys.forEach(function (key) {
 		counters[key] = counters[key] || 0;
@@ -64,10 +66,10 @@ Analytics.pageView = async function (payload) {
 
 	if (payload.ip) {
 		// Retrieve hash or calculate if not present
-		let hash = ipCache.get(payload.ip + nconf.get('secret'));
+		let hash = ipCache.get(payload.ip + secret);
 		if (!hash) {
-			hash = crypto.createHash('sha1').update(payload.ip + nconf.get('secret')).digest('hex');
-			ipCache.set(payload.ip + nconf.get('secret'), hash);
+			hash = crypto.createHash('sha1').update(payload.ip + secret).digest('hex');
+			ipCache.set(payload.ip + secret, hash);
 		}
 
 		const score = await db.sortedSetScore('ip:recent', hash);
@@ -137,7 +139,7 @@ Analytics.writeData = async function () {
 	try {
 		await Promise.all(dbQueue);
 	} catch (err) {
-		winston.error('[analytics] Encountered error while writing analytics to data store', err.stack);
+		winston.error('[analytics] Encountered error while writing analytics to data store\n' + err.stack);
 		throw err;
 	}
 };

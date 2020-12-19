@@ -58,7 +58,7 @@ define('admin/manage/category', [
 					timeout: 5000,
 				});
 				updateHash = {};
-			});
+			}).catch(app.alertError);
 
 			return false;
 		});
@@ -66,10 +66,10 @@ define('admin/manage/category', [
 		$('.purge').on('click', function (e) {
 			e.preventDefault();
 
-			Benchpress.parse('admin/partials/categories/purge', {
+			Benchpress.render('admin/partials/categories/purge', {
 				name: ajaxify.data.category.name,
 				topic_count: ajaxify.data.category.topic_count,
-			}, function (html) {
+			}).then(function (html) {
 				var modal = bootbox.dialog({
 					title: '[[admin/manage/categories:purge]]',
 					message: html,
@@ -103,7 +103,7 @@ define('admin/manage/category', [
 									modal.modal('hide');
 									app.alertSuccess('[[admin/manage/categories:alert.purge-success]]');
 									ajaxify.go('admin/manage/categories');
-								});
+								}).catch(app.alertError);
 
 								return false;
 							},
@@ -119,9 +119,9 @@ define('admin/manage/category', [
 					return app.alertError(err.message);
 				}
 
-				Benchpress.parse('admin/partials/categories/copy-settings', {
+				Benchpress.render('admin/partials/categories/copy-settings', {
 					categories: allCategories,
-				}, function (html) {
+				}).then(function (html) {
 					var selectedCid;
 					var modal = bootbox.dialog({
 						title: '[[modules:composer.select_category]]',
@@ -215,7 +215,7 @@ define('admin/manage/category', [
 				$('button[data-action="removeParent"]').parent().addClass('hide');
 				$('button[data-action="changeParent"]').parent().addClass('hide');
 				$('button[data-action="setParent"]').removeClass('hide');
-			});
+			}).catch(app.alertError);
 		});
 		$('button[data-action="toggle"]').on('click', function () {
 			var $this = $(this);
@@ -226,7 +226,7 @@ define('admin/manage/category', [
 				$this.translateText(!disabled ? '[[admin/manage/categories:enable]]' : '[[admin/manage/categories:disable]]');
 				$this.toggleClass('btn-primary', !disabled).toggleClass('btn-danger', disabled);
 				$this.attr('data-disabled', disabled ? 0 : 1);
-			});
+			}).catch(app.alertError);
 		});
 	};
 
@@ -287,7 +287,7 @@ define('admin/manage/category', [
 					$('button[data-action="setParent"]').addClass('hide');
 					var buttonHtml = '<i class="fa ' + parent.icon + '"></i> ' + parent.name;
 					$('button[data-action="changeParent"]').html(buttonHtml).parent().removeClass('hide');
-				});
+				}).catch(app.alertError);
 			});
 		});
 	};

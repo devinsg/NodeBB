@@ -324,47 +324,8 @@
 		},
 		// https://github.com/jprichardson/string.js/blob/master/lib/string.js
 		stripHTMLTags: function (str, tags) {
-			var pattern = (tags || ['']).map(function (tag) {
-				return utils.escapeRegexChars(tag);
-			}).join('|');
+			var pattern = (tags || ['']).join('|');
 			return String(str).replace(new RegExp('<(\\/)?(' + (pattern || '[^\\s>]+') + ')(\\s+[^<>]*?)?\\s*(\\/)?>', 'gi'), '');
-		},
-
-
-		// TODO: remove XRegExp & all these in 1.16.0, they are moved to slugify module
-		invalidUnicodeChars: XRegExp('[^\\p{L}\\s\\d\\-_]', 'g'),
-		invalidLatinChars: /[^\w\s\d\-_]/g,
-		trimRegex: /^\s+|\s+$/g,
-		collapseWhitespace: /\s+/g,
-		collapseDash: /-+/g,
-		trimTrailingDash: /-$/g,
-		trimLeadingDash: /^-/g,
-		isLatin: /^[\w\d\s.,\-@]+$/,
-
-		// http://dense13.com/blog/2009/05/03/converting-string-to-slug-javascript/
-		slugify: function (str, preserveCase) {
-			var stack = new Error('utils.slugify').stack.split('\n').slice(0, 4).join('\n');
-			if (typeof module === 'object' && module.exports) {
-				console.warn('[deprecated] utils.slugify deprecated. Use `require("slugify")` instead.\n' + stack);
-			} else {
-				console.warn('[deprecated] utils.slugify deprecated. Use `require(["slugify"], function (slugify) { ... })` instead.\n' + stack);
-			}
-
-			if (!str) {
-				return '';
-			}
-			str = String(str).replace(utils.trimRegex, '');
-			if (utils.isLatin.test(str)) {
-				str = str.replace(utils.invalidLatinChars, '-');
-			} else {
-				str = XRegExp.replace(str, utils.invalidUnicodeChars, '-');
-			}
-			str = !preserveCase ? str.toLocaleLowerCase() : str;
-			str = str.replace(utils.collapseWhitespace, '-');
-			str = str.replace(utils.collapseDash, '-');
-			str = str.replace(utils.trimTrailingDash, '');
-			str = str.replace(utils.trimLeadingDash, '');
-			return str;
 		},
 
 		cleanUpTag: function (tag, maxLength) {

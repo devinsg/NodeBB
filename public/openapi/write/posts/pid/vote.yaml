@@ -3,6 +3,14 @@ put:
     - posts
   summary: vote on a post
   description: This operation casts a vote on a post.
+  parameters:
+    - in: path
+      name: pid
+      schema:
+        type: string
+      required: true
+      description: a valid post id
+      example: 2
   requestBody:
     required: true
     content:
@@ -13,8 +21,7 @@ put:
             delta:
               type: number
               description: Positive integer for upvote, negative integer for downvote (0 to unvote.)
-        example:
-          delta: 1
+              example: 1
   responses:
     '200':
       description: Post successfully upvoted
@@ -33,6 +40,14 @@ delete:
     - posts
   summary: unvote a post
   description: This operation removes a pre-cast vote on a post.
+  parameters:
+    - in: path
+      name: pid
+      schema:
+        type: string
+      required: true
+      description: a valid post id
+      example: 2
   responses:
     '200':
       description: Post successfully unvoted

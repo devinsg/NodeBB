@@ -7,6 +7,7 @@ const db = require('../database');
 const pagination = require('../pagination');
 const privileges = require('../privileges');
 const helpers = require('./helpers');
+const api = require('../api');
 
 const usersController = module.exports;
 
@@ -31,35 +32,10 @@ usersController.index = async function (req, res, next) {
 };
 
 usersController.search = async function (req, res) {
-	const [allowed, isPrivileged] = await Promise.all([
-		privileges.global.can('search:users', req.uid),
-		user.isPrivileged(req.uid),
-	]);
-	let filters = req.query.filters || [];
-	filters = Array.isArray(filters) ? filters : [filters];
-	if (!allowed ||
-		((
-			req.query.searchBy === 'ip' ||
-			req.query.searchBy === 'email' ||
-			filters.includes('banned') ||
-			filters.includes('flagged')
-		) && !isPrivileged)
-	) {
-		throw new Error('[[error:no-privileges]]');
-	}
-	const [searchData, isAdminOrGlobalMod] = await Promise.all([
-		user.search({
-			query: req.query.query,
-			searchBy: req.query.searchBy || 'username',
-			page: req.query.page || 1,
-			sortBy: req.query.sortBy || 'joindate',
-			filters: filters,
-		}),
-		user.isAdminOrGlobalMod(req.uid),
-	]);
+	const searchData = await api.users.search(req, req.query);
+
 	const section = req.query.section || 'joindate';
 
-	searchData.isAdminOrGlobalMod = isAdminOrGlobalMod;
 	searchData.pagination = pagination.create(req.query.page, searchData.pageCount, req.query);
 	searchData['section_' + section] = true;
 	searchData.displayUserSearch = true;
@@ -120,7 +96,7 @@ async function renderIfAdminOrGlobalMod(set, req, res) {
 
 usersController.renderUsersPage = async function (set, req, res) {
 	const userData = await usersController.getUsers(set, req.uid, req.query);
-	render(req, res, userData);
+	await render(req, res, userData);
 };
 
 usersController.getUsers = async function (set, uid, query) {
@@ -195,10 +171,15 @@ async function render(req, res, data) {
 	data.inviteOnly = registrationType === 'invite-only' || registrationType === 'admin-invite-only';
 	data.adminInviteOnly = registrationType === 'admin-invite-only';
 	data.invites = await user.getInvitesNumber(req.uid);
-	data.showInviteButton = req.loggedIn && (
-		(registrationType === 'invite-only' && (data.isAdmin || !data.maximumInvites || data.invites < data.maximumInvites)) ||
-		(registrationType === 'admin-invite-only' && data.isAdmin)
-	);
+
+	data.showInviteButton = false;
+	if (data.adminInviteOnly) {
+		data.showInviteButton = await privileges.users.isAdministrator(req.uid);
+	} else if (req.loggedIn) {
+		const canInvite = await privileges.users.hasInvitePrivilege(req.uid);
+		data.showInviteButton = canInvite && (!data.maximumInvites || data.invites < data.maximumInvites);
+	}
+
 	data['reputation:disabled'] = meta.config['reputation:disabled'];
 
 	res.append('X-Total-Count', data.userCount);

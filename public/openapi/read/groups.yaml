@@ -20,15 +20,13 @@ get:
                           type: string
                         description:
                           type: string
-                        deleted:
-                          oneOf:
-                            - type: number
-                            - type: string
                         hidden:
                           type: number
                         system:
                           type: number
                         userTitle:
+                          type: string
+                        userTitleEscaped:
                           type: string
                         icon:
                           type: string
@@ -62,6 +60,11 @@ get:
                           type: string
                         cover:position:
                           type: string
+                        memberPostCids:
+                          type: array
+                          items:
+                            type: number
+                            example: [1, 2, 3]
                         members:
                           type: array
                           items:
@@ -94,8 +97,6 @@ get:
                                 example: "#f44336"
                         truncated:
                           type: boolean
-                        ownerUid:
-                          type: number
                   allowGroupCreation:
                     type: boolean
                   nextStart:

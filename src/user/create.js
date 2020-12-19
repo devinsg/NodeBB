@@ -1,6 +1,8 @@
 'use strict';
 
 const zxcvbn = require('zxcvbn');
+const winston = require('winston');
+
 const db = require('../database');
 const utils = require('../utils');
 const slugify = require('../slugify');
@@ -67,12 +69,16 @@ module.exports = function (User) {
 			userData.userslug = slugify(renamedUsername);
 		}
 
-		const results = await plugins.fireHook('filter:user.create', { user: userData, data: data });
+		const results = await plugins.hooks.fire('filter:user.create', { user: userData, data: data });
 		userData = results.user;
 
 		const uid = await db.incrObjectField('global', 'nextUid');
+		const isFirstUser = uid === 1;
 		userData.uid = uid;
 
+		if (isFirstUser) {
+			userData['email:confirmed'] = 1;
+		}
 		await db.setObject('user:' + uid, userData);
 
 		const bulkAdd = [
@@ -97,8 +103,7 @@ module.exports = function (User) {
 		}
 
 		const groupsToJoin = ['registered-users'].concat(
-			parseInt(userData.uid, 10) !== 1 ?
-				'unverified-users' : 'verified-users'
+			isFirstUser ? 'verified-users' : 'unverified-users'
 		);
 
 		await Promise.all([
@@ -113,12 +118,12 @@ module.exports = function (User) {
 		if (userData.email && userData.uid > 1 && meta.config.requireEmailConfirmation) {
 			User.email.sendValidationEmail(userData.uid, {
 				email: userData.email,
-			});
+			}).catch(err => winston.error('[user.create] Validation email failed to send\n[emailer.send] ' + err.stack));
 		}
 		if (userNameChanged) {
 			await User.notifications.sendNameChangeNotification(userData.uid, userData.username);
 		}
-		plugins.fireHook('action:user.create', { user: userData, data: data });
+		plugins.hooks.fire('action:user.create', { user: userData, data: data });
 		return userData.uid;
 	}
 
@@ -128,7 +133,10 @@ module.exports = function (User) {
 		}
 		const hash = await User.hashPassword(password);
 		await Promise.all([
-			User.setUserField(uid, 'password', hash),
+			User.setUserFields(uid, {
+				password: hash,
+				'password:shaWrapped': 1,
+			}),
 			User.reset.updateExpiry(uid),
 		]);
 	}

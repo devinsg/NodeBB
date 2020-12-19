@@ -3,6 +3,7 @@
 
 const async = require('async');
 const validator = require('validator');
+const winston = require('winston');
 
 const utils = require('../utils');
 const slugify = require('../slugify');
@@ -22,7 +23,7 @@ module.exports = function (User) {
 		}
 		const updateUid = data.uid;
 
-		const result = await plugins.fireHook('filter:user.updateProfile', {
+		const result = await plugins.hooks.fire('filter:user.updateProfile', {
 			uid: uid,
 			data: data,
 			fields: fields,
@@ -52,7 +53,7 @@ module.exports = function (User) {
 			await User.setUserField(updateUid, field, data[field]);
 		});
 
-		plugins.fireHook('action:user.updateProfile', {
+		plugins.hooks.fire('action:user.updateProfile', {
 			uid: uid,
 			data: data,
 			fields: fields,
@@ -246,7 +247,7 @@ module.exports = function (User) {
 				email: newEmail,
 				subject: '[[email:email.verify-your-email.subject]]',
 				template: 'verify_email',
-			});
+			}).catch(err => winston.error('[user.create] Validation email failed to send\n[emailer.send] ' + err.stack));
 		}
 	}
 
@@ -324,6 +325,7 @@ module.exports = function (User) {
 		await Promise.all([
 			User.setUserFields(data.uid, {
 				password: hashedPassword,
+				'password:shaWrapped': 1,
 				rss_token: utils.generateUUID(),
 			}),
 			User.reset.cleanByUid(data.uid),
@@ -331,6 +333,6 @@ module.exports = function (User) {
 			User.auth.revokeAllSessions(data.uid),
 		]);
 
-		plugins.fireHook('action:password.change', { uid: uid, targetUid: data.uid });
+		plugins.hooks.fire('action:password.change', { uid: uid, targetUid: data.uid });
 	};
 };

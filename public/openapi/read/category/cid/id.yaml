@@ -3,6 +3,12 @@ get:
     - shorthand
   summary: Get category data
   parameters:
+    - name: type
+      in: path
+      required: true
+      schema:
+        type: string
+      example: category
     - name: id
       in: path
       required: true
@@ -52,6 +58,8 @@ get:
               imageClass:
                 type: string
               isSection:
+                type: number
+              postQueue:
                 type: number
               totalPostCount:
                 type: number

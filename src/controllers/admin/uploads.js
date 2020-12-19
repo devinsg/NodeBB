@@ -46,7 +46,7 @@ uploadsController.get = async function (req, res, next) {
 		});
 
 		// Add post usage info if in /files
-		if (req.query.dir === '/files') {
+		if (['/files', '/files/'].includes(req.query.dir)) {
 			const usage = await posts.uploads.getUsage(files);
 			files.forEach(function (file, idx) {
 				file.inPids = usage[idx].map(pid => parseInt(pid, 10));
@@ -237,8 +237,8 @@ function validateUpload(res, uploadedFile, allowedTypes) {
 async function uploadImage(filename, folder, uploadedFile, req, res, next) {
 	let imageData;
 	try {
-		if (plugins.hasListeners('filter:uploadImage')) {
-			imageData = await plugins.fireHook('filter:uploadImage', { image: uploadedFile, uid: req.uid, folder: folder });
+		if (plugins.hooks.hasListeners('filter:uploadImage')) {
+			imageData = await plugins.hooks.fire('filter:uploadImage', { image: uploadedFile, uid: req.uid, folder: folder });
 		} else {
 			imageData = await file.saveFileToLocal(filename, folder, uploadedFile.path);
 		}

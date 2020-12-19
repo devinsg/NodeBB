@@ -106,11 +106,11 @@ define('forum/groups/details', [
 					break;
 
 				case 'join':	// intentional fall-throughs!
-					api.put('/groups/' + ajaxify.data.group.slug + '/membership/' + (uid || app.user.uid), undefined).then(() => ajaxify.refresh());
+					api.put('/groups/' + ajaxify.data.group.slug + '/membership/' + (uid || app.user.uid), undefined).then(() => ajaxify.refresh()).catch(app.alertError);
 					break;
 
 				case 'leave':
-					api.del('/groups/' + ajaxify.data.group.slug + '/membership/' + (uid || app.user.uid), undefined).then(() => ajaxify.refresh());
+					api.del('/groups/' + ajaxify.data.group.slug + '/membership/' + (uid || app.user.uid), undefined).then(() => ajaxify.refresh()).catch(app.alertError);
 					break;
 
 				// TODO (14/10/2020): rewrite these to use api module and merge with above 2 case blocks
@@ -143,6 +143,7 @@ define('forum/groups/details', [
 		var textColorValueEl = settingsFormEl.find('[name="textColor"]');
 		var iconBtn = settingsFormEl.find('[data-action="icon-select"]');
 		var previewEl = settingsFormEl.find('.label');
+		var previewElText = settingsFormEl.find('.label-text');
 		var previewIcon = previewEl.find('i');
 		var userTitleEl = settingsFormEl.find('[name="userTitle"]');
 		var userTitleEnabledEl = settingsFormEl.find('[name="userTitleEnabled"]');
@@ -165,9 +166,7 @@ define('forum/groups/details', [
 
 		// If the user title changes, update that too
 		userTitleEl.on('keyup', function () {
-			var icon = previewIcon.detach();
-			previewEl.text(' ' + (this.value || settingsFormEl.find('#name').val()));
-			previewEl.prepend(icon);
+			previewElText.translateText((this.value || settingsFormEl.find('#name').val()));
 		});
 
 		// Disable user title customisation options if the the user title itself is disabled
@@ -190,6 +189,11 @@ define('forum/groups/details', [
 
 		if (settingsFormEl.length) {
 			var settings = settingsFormEl.serializeObject();
+
+			// serializeObject doesnt return array for multi selects if only one item is selected
+			if (!Array.isArray(settings.memberPostCids)) {
+				settings.memberPostCids = $('#memberPostCids').val();
+			}
 
 			// Fix checkbox values
 			checkboxes.each(function (idx, inputEl) {

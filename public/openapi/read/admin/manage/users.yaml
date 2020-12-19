@@ -25,7 +25,11 @@ get:
                     type: boolean
                   sortBy:
                     type: string
-                  sort_online:
+                  sort_lastonline:
+                    type: boolean
+                  userCount:
+                    type: number
+                  showInviteButton:
                     type: boolean
                   inviteOnly:
                     type: boolean

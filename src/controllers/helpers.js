@@ -1,9 +1,9 @@
 'use strict';
 
+const colors = require('colors/safe');
 const nconf = require('nconf');
 const validator = require('validator');
 const querystring = require('querystring');
-const url = require('url');
 const _ = require('lodash');
 
 const user = require('../user');
@@ -12,10 +12,11 @@ const categories = require('../categories');
 const plugins = require('../plugins');
 const meta = require('../meta');
 const middleware = require('../middleware');
-const translator = require('../translator');
 
-const isLanguageKey = /^\[\[[\w.\-_:]+]]$/;
 const helpers = module.exports;
+
+const relative_path = nconf.get('relative_path');
+const url = nconf.get('url');
 
 helpers.noScriptErrors = async function (req, res, error, httpStatus) {
 	if (req.body.noscript !== 'true') {
@@ -40,7 +41,7 @@ helpers.terms = {
 };
 
 helpers.buildQueryString = function (query, key, value) {
-	const queryObj = _.clone(query);
+	const queryObj = { ...query };
 	if (value) {
 		queryObj[key] = value;
 	} else {
@@ -54,11 +55,11 @@ helpers.addLinkTags = function (params) {
 	params.res.locals.linkTags = params.res.locals.linkTags || [];
 	params.res.locals.linkTags.push({
 		rel: 'canonical',
-		href: nconf.get('url') + '/' + params.url,
+		href: url + '/' + params.url,
 	});
 
 	params.tags.forEach(function (rel) {
-		rel.href = nconf.get('url') + '/' + params.url + rel.href;
+		rel.href = url + '/' + params.url + rel.href;
 		params.res.locals.linkTags.push(rel);
 	});
 };
@@ -116,7 +117,7 @@ helpers.buildTerms = function (url, term, query) {
 };
 
 helpers.notAllowed = async function (req, res, error) {
-	const data = await plugins.fireHook('filter:helpers.notAllowed', {
+	const data = await plugins.hooks.fire('filter:helpers.notAllowed', {
 		req: req,
 		res: res,
 		error: error,
@@ -139,17 +140,35 @@ helpers.notAllowed = async function (req, res, error) {
 		helpers.formatApiResponse(401, res, error);
 	} else {
 		req.session.returnTo = req.url;
-		res.redirect(nconf.get('relative_path') + '/login');
+		res.redirect(relative_path + '/login');
 	}
 };
 
 helpers.redirect = function (res, url, permanent) {
+	// this is used by sso plugins to redirect to the auth route
+	// { external: '/auth/sso' } or { external: 'https://domain/auth/sso' }
+	if (url.hasOwnProperty('external')) {
+		const redirectUrl = encodeURI(prependRelativePath(url.external));
+		if (res.locals.isAPI) {
+			res.set('X-Redirect', redirectUrl).status(200).json({ external: redirectUrl });
+		} else {
+			res.redirect(permanent ? 308 : 307, redirectUrl);
+		}
+		return;
+	}
+
 	if (res.locals.isAPI) {
-		res.set('X-Redirect', encodeURI(url)).status(200).json(url);
+		url = encodeURI(url);
+		res.set('X-Redirect', url).status(200).json(url);
 	} else {
-		res.redirect(permanent ? 308 : 307, nconf.get('relative_path') + encodeURI(url));
+		res.redirect(permanent ? 308 : 307, encodeURI(prependRelativePath(url)));
 	}
 };
+
+function prependRelativePath(url) {
+	return url.startsWith('http://') || url.startsWith('https://') ?
+		url : relative_path + url;
+}
 
 helpers.buildCategoryBreadcrumbs = async function (cid) {
 	const breadcrumbs = [];
@@ -160,7 +179,7 @@ helpers.buildCategoryBreadcrumbs = async function (cid) {
 		if (!data.disabled && !data.isSection) {
 			breadcrumbs.unshift({
 				text: String(data.name),
-				url: nconf.get('relative_path') + '/category/' + data.slug,
+				url: relative_path + '/category/' + data.slug,
 				cid: cid,
 			});
 		}
@@ -169,13 +188,13 @@ helpers.buildCategoryBreadcrumbs = async function (cid) {
 	if (meta.config.homePageRoute && meta.config.homePageRoute !== 'categories') {
 		breadcrumbs.unshift({
 			text: '[[global:header.categories]]',
-			url: nconf.get('relative_path') + '/categories',
+			url: relative_path + '/categories',
 		});
 	}
 
 	breadcrumbs.unshift({
 		text: '[[global:home]]',
-		url: nconf.get('relative_path') + '/',
+		url: relative_path + '/',
 	});
 
 	return breadcrumbs;
@@ -185,14 +204,14 @@ helpers.buildBreadcrumbs = function (crumbs) {
 	const breadcrumbs = [
 		{
 			text: '[[global:home]]',
-			url: nconf.get('relative_path') + '/',
+			url: relative_path + '/',
 		},
 	];
 
 	crumbs.forEach(function (crumb) {
 		if (crumb) {
 			if (crumb.url) {
-				crumb.url = nconf.get('relative_path') + crumb.url;
+				crumb.url = relative_path + crumb.url;
 			}
 			breadcrumbs.push(crumb);
 		}
@@ -336,13 +355,17 @@ helpers.getHomePageRoutes = async function (uid) {
 			name: 'Custom',
 		},
 	]);
-	const data = await plugins.fireHook('filter:homepage.get', { routes: routes });
+	const data = await plugins.hooks.fire('filter:homepage.get', { routes: routes });
 	return data.routes;
 };
 
 helpers.formatApiResponse = async (statusCode, res, payload) => {
-	if (statusCode === 200) {
-		res.status(200).json({
+	if (res.req.method === 'HEAD') {
+		return res.sendStatus(statusCode);
+	}
+
+	if (String(statusCode).startsWith('2')) {
+		res.status(statusCode).json({
 			status: {
 				code: 'ok',
 				message: 'OK',
@@ -350,24 +373,30 @@ helpers.formatApiResponse = async (statusCode, res, payload) => {
 			response: payload || {},
 		});
 	} else if (payload instanceof Error) {
-		let message = '';
-		if (isLanguageKey.test(payload.message)) {
-			message = await translator.translate(payload.message, 'en-GB');
-		} else {
-			message = payload.message;
-		}
+		const message = payload.message;
+		const response = {};
 
 		// Update status code based on some common error codes
 		switch (payload.message) {
+			case '[[error:user-banned]]':
+				Object.assign(response, await generateBannedResponse(res));
+				// intentional fall through
+
 			case '[[error:no-privileges]]':
 				statusCode = 403;
+				break;
+
+			case '[[error:invalid-uid]]':
+				statusCode = 401;
 				break;
 		}
 
 		const returnPayload = helpers.generateError(statusCode, message);
+		returnPayload.response = response;
 
 		if (global.env === 'development') {
 			returnPayload.stack = payload.stack;
+			process.stdout.write(`[${colors.yellow('api')}] Exception caught, error with stack trace follows:\n`);
 			process.stdout.write(payload.stack);
 		}
 		res.status(statusCode).json(returnPayload);
@@ -376,6 +405,25 @@ helpers.formatApiResponse = async (statusCode, res, payload) => {
 		res.status(statusCode).json(helpers.generateError(statusCode));
 	}
 };
+
+async function generateBannedResponse(res) {
+	const response = {};
+	const [reason, expiry] = await Promise.all([
+		user.bans.getReason(res.req.uid),
+		user.getUserField(res.req.uid, 'banned:expire'),
+	]);
+
+	response.reason = reason;
+	if (expiry) {
+		Object.assign(response, {
+			expiry,
+			expiryISO: new Date(expiry).toISOString(),
+			expiryLocaleString: new Date(expiry).toLocaleString(),
+		});
+	}
+
+	return response;
+}
 
 helpers.generateError = (statusCode, message) => {
 	var payload = {
@@ -416,33 +464,20 @@ helpers.generateError = (statusCode, message) => {
 		case 500:
 			payload.status.code = 'internal-server-error';
 			payload.status.message = message || payload.status.message;
+			break;
+
+		case 501:
+			payload.status.code = 'not-implemented';
+			payload.status.message = message || 'The route you are trying to call is not implemented yet, please try again tomorrow';
+			break;
+
+		case 503:
+			payload.status.code = 'service-unavailable';
+			payload.status.message = message || 'The route you are trying to call is not currently available due to a server configuration';
+			break;
 	}
 
 	return payload;
-};
-
-helpers.buildReqObject = (req) => {
-	var headers = req.headers;
-	var encrypted = !!req.connection.encrypted;
-	var host = headers.host;
-	var referer = headers.referer || '';
-	if (!host) {
-		host = url.parse(referer).host || '';
-	}
-
-	return {
-		uid: req.uid,
-		params: req.params,
-		method: req.method,
-		body: req.body,
-		ip: req.ip,
-		host: host,
-		protocol: encrypted ? 'https' : 'http',
-		secure: encrypted,
-		url: referer,
-		path: referer.substr(referer.indexOf(host) + host.length),
-		headers: headers,
-	};
 };
 
 require('../promisify')(helpers);
