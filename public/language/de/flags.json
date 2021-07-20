@@ -6,6 +6,7 @@
 	"assignee": "Zugeordneter Benutzer",
 	"update": "Aktualisieren",
 	"updated": "Aktualisiert",
+	"resolved": "Resolved",
 	"target-purged": "Der Inhalt auf den diese Meldung hingewiesen hat, wurde gelöscht und ist nicht mehr verfügbar.",
 
 	"graph-label": "Tägliche Meldungen",
@@ -26,6 +27,7 @@
 	"filter-cid-all": "Alle Kategorien",
 	"apply-filters": "Filter anwenden",
 	"more-filters": "Weitere Filter",
+	"fewer-filters": "Fewer Filters",
 
 	"quick-actions": "Schnellaktionen",
 	"flagged-user": "Gemeldeter Benutzer",

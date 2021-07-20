@@ -23,6 +23,8 @@ search.search = async function (data) {
 		result = await searchInContent(data);
 	} else if (data.searchIn === 'users') {
 		result = await user.search(data);
+	} else if (data.searchIn === 'categories') {
+		result = await categories.search(data);
 	} else if (data.searchIn === 'tags') {
 		result = await topics.searchAndLoadTags(data);
 	} else {
@@ -127,7 +129,7 @@ async function getMatchedPosts(pids, data) {
 
 	const tidToTopic = _.zipObject(tids, topics);
 	const uidToUser = _.zipObject(uids, users);
-	postsData.forEach(function (post) {
+	postsData.forEach((post) => {
 		if (topics && tidToTopic[post.tid]) {
 			post.topic = tidToTopic[post.tid];
 			if (post.topic && post.topic.category) {
@@ -153,18 +155,15 @@ async function getUsers(uids, data) {
 async function getTopics(tids, data) {
 	const topicsData = await topics.getTopicsData(tids);
 	const cids = _.uniq(topicsData.map(topic => topic && topic.cid));
-	const [categories, tags] = await Promise.all([
-		getCategories(cids, data),
-		getTags(tids, data),
-	]);
+	const categories = await getCategories(cids, data);
 
 	const cidToCategory = _.zipObject(cids, categories);
-	topicsData.forEach(function (topic, index) {
+	topicsData.forEach((topic) => {
 		if (topic && categories && cidToCategory[topic.cid]) {
 			topic.category = cidToCategory[topic.cid];
 		}
-		if (topic && tags && tags[index]) {
-			topic.tags = tags[index];
+		if (topic && topic.tags) {
+			topic.tags = topic.tags.map(tag => tag.value);
 		}
 	});
 
@@ -181,14 +180,7 @@ async function getCategories(cids, data) {
 		return null;
 	}
 
-	return await db.getObjectsFields(cids.map(cid => 'category:' + cid), categoryFields);
-}
-
-async function getTags(tids, data) {
-	if (Array.isArray(data.hasTags) && data.hasTags.length) {
-		return await topics.getTopicsTags(tids);
-	}
-	return null;
+	return await db.getObjectsFields(cids.map(cid => `category:${cid}`), categoryFields);
 }
 
 function filterByPostcount(posts, postCount, repliesFilter) {
@@ -218,8 +210,8 @@ function filterByTimerange(posts, timeRange, timeFilter) {
 
 function filterByTags(posts, hasTags) {
 	if (Array.isArray(hasTags) && hasTags.length) {
-		posts = posts.filter(function (post) {
-			var hasAllTags = false;
+		posts = posts.filter((post) => {
+			let hasAllTags = false;
 			if (post && post.topic && Array.isArray(post.topic.tags) && post.topic.tags.length) {
 				hasAllTags = hasTags.every(tag => post.topic.tags.includes(tag));
 			}
@@ -251,7 +243,7 @@ function sortPosts(posts, data) {
 	if (isNumeric) {
 		posts.sort((p1, p2) => direction * (p2[fields[0]][fields[1]] - p1[fields[0]][fields[1]]));
 	} else {
-		posts.sort(function (p1, p2) {
+		posts.sort((p1, p2) => {
 			if (p1[fields[0]][fields[1]] > p2[fields[0]][fields[1]]) {
 				return direction;
 			} else if (p1[fields[0]][fields[1]] < p2[fields[0]][fields[1]]) {
@@ -282,7 +274,7 @@ async function getWatchedCids(data) {
 	if (!data.categories.includes('watched')) {
 		return [];
 	}
-	return await user.getCategoriesByStates(data.uid, [categories.watchStates.watching]);
+	return await user.getWatchedCategories(data.uid);
 }
 
 async function getChildrenCids(data) {

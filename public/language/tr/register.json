@@ -24,5 +24,8 @@
     "interstitial.errors-found": "Kaydınız tamamlanamadı:",
     "gdpr_agree_data": "Bu web sitesinde kişisel bilgilerimin toplanmasını ve işlenmesini kabul ediyorum.",
     "gdpr_agree_email": "Bu web sitesinden özet ve bildirim e-postası almaya izin veriyorum.",
-    "gdpr_consent_denied": "Bilgilerinizi toplamak/işlemek ve size e-posta göndermek için bu siteye onay vermelisiniz."
+    "gdpr_consent_denied": "Bilgilerinizi toplamak/işlemek ve size e-posta göndermek için bu siteye onay vermelisiniz.",
+    "invite.error-admin-only": "Direkt üye kaydı devre dışı bırakıldı. Lütfen daha fazla bilgi için bir yöneticiye ulaşın.",
+    "invite.error-invite-only": "Direkt üye kaydı devre dışı bırakıldı. Bu foruma erişebilmek için bir üye tarafından davet edilmelisiniz. ",
+    "invite.error-invalid-data": "Girilen üyelik bilgileri kayıtlarda bulunamadı. Lütfen daha fazla bilgi için bir yöneticiye ulaşın."
 }

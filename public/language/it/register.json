@@ -24,5 +24,8 @@
     "interstitial.errors-found": "Non abbiamo potuto completare la tua registrazione:",
     "gdpr_agree_data": "Acconsento alla raccolta e al trattamento dei miei dati personali su questo sito web.",
     "gdpr_agree_email": "Acconsento a ricevere email di riepilogo e notifiche da questo sito web.",
-    "gdpr_consent_denied": "È necessario dare il consenso a questo sito per raccogliere/elaborare i tuoi dati e per inviarti email."
+    "gdpr_consent_denied": "È necessario dare il consenso a questo sito per raccogliere/elaborare i tuoi dati e per inviarti email.",
+    "invite.error-admin-only": "La registrazione diretta degli utenti è stata disabilitata. Si prega di contattare un amministratore per maggiori dettagli.",
+    "invite.error-invite-only": "La registrazione diretta degli utenti è stata disabilitata. Devi essere invitato da un utente esistente per accedere a questo forum.",
+    "invite.error-invalid-data": "I dati di registrazione ricevuti non corrispondono ai nostri registri. Si prega di contattare un amministratore per maggiori dettagli"
 }

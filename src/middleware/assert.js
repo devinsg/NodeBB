@@ -8,6 +8,7 @@
 const path = require('path');
 const nconf = require('nconf');
 
+const db = require('../database');
 const file = require('../file');
 const user = require('../user');
 const groups = require('../groups');
@@ -46,7 +47,15 @@ Assert.topic = helpers.try(async (req, res, next) => {
 
 Assert.post = helpers.try(async (req, res, next) => {
 	if (!await posts.exists(req.params.pid)) {
-		return controllerHelpers.formatApiResponse(404, res, new Error('[[error:no-topic]]'));
+		return controllerHelpers.formatApiResponse(404, res, new Error('[[error:no-post]]'));
+	}
+
+	next();
+});
+
+Assert.flag = helpers.try(async (req, res, next) => {
+	if (!await db.isSortedSetMember('flags:datetime', req.params.flagId)) {
+		return controllerHelpers.formatApiResponse(404, res, new Error('[[error:no-flag]]'));
 	}
 
 	next();

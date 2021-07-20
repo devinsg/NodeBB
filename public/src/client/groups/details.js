@@ -9,7 +9,18 @@ define('forum/groups/details', [
 	'translator',
 	'api',
 	'slugify',
-], function (memberList, iconSelect, components, coverPhoto, pictureCropper, translator, api, slugify) {
+	'categorySelector',
+], function (
+	memberList,
+	iconSelect,
+	components,
+	coverPhoto,
+	pictureCropper,
+	translator,
+	api,
+	slugify,
+	categorySelector
+) {
 	var Details = {};
 	var groupName;
 
@@ -64,16 +75,9 @@ define('forum/groups/details', [
 
 			switch (action) {
 				case 'toggleOwnership':
-					socket.emit('groups.' + (isOwner ? 'rescind' : 'grant'), {
-						toUid: uid,
-						groupName: groupName,
-					}, function (err) {
-						if (!err) {
-							ownerFlagEl.toggleClass('invisible');
-						} else {
-							app.alertError(err.message);
-						}
-					});
+					api[isOwner ? 'del' : 'put'](`/groups/${ajaxify.data.group.slug}/ownership/${uid}`, {}).then(() => {
+						ownerFlagEl.toggleClass('invisible');
+					}).catch(app.alertError);
 					break;
 
 				case 'kick':
@@ -83,16 +87,7 @@ define('forum/groups/details', [
 								return;
 							}
 
-							socket.emit('groups.kick', {
-								uid: uid,
-								groupName: groupName,
-							}, function (err) {
-								if (!err) {
-									userRow.slideUp().remove();
-								} else {
-									app.alertError(err.message);
-								}
-							});
+							api.del(`/groups/${ajaxify.data.group.slug}/membership/${uid}`, undefined).then(() => userRow.slideUp().remove()).catch(app.alertError);
 						});
 					});
 					break;
@@ -181,6 +176,16 @@ define('forum/groups/details', [
 				previewEl.addClass('hide');
 			}
 		});
+
+		var cidSelector = categorySelector.init($('.member-post-cids-selector [component="category-selector"]'), {
+			onSelect: function (selectedCategory) {
+				var cids = ($('#memberPostCids').val() || '').split(',').map(cid => parseInt(cid, 10));
+				cids.push(selectedCategory.cid);
+				cids = cids.filter((cid, index, array) => array.indexOf(cid) === index);
+				$('#memberPostCids').val(cids.join(','));
+				cidSelector.selectCategory(0);
+			},
+		});
 	};
 
 	Details.update = function () {
@@ -203,14 +208,7 @@ define('forum/groups/details', [
 				}
 			});
 
-			socket.emit('groups.update', {
-				groupName: groupName,
-				values: settings,
-			}, function (err) {
-				if (err) {
-					return app.alertError(err.message);
-				}
-
+			api.put(`/groups/${ajaxify.data.group.slug}`, settings).then(() => {
 				if (settings.name) {
 					var pathname = window.location.pathname;
 					pathname = pathname.substr(1, pathname.lastIndexOf('/'));
@@ -220,7 +218,7 @@ define('forum/groups/details', [
 				}
 
 				app.alertSuccess('[[groups:event.updated]]');
-			});
+			}).catch(app.alertError);
 		}
 	};
 
@@ -229,16 +227,10 @@ define('forum/groups/details', [
 			if (confirm) {
 				bootbox.prompt('Please enter the name of this group in order to delete it:', function (response) {
 					if (response === groupName) {
-						socket.emit('groups.delete', {
-							groupName: groupName,
-						}, function (err) {
-							if (!err) {
-								app.alertSuccess('[[groups:event.deleted, ' + utils.escapeHTML(groupName) + ']]');
-								ajaxify.go('groups');
-							} else {
-								app.alertError(err.message);
-							}
-						});
+						api.del(`/groups/${ajaxify.data.group.slug}`, {}).then(() => {
+							app.alertSuccess('[[groups:event.deleted, ' + utils.escapeHTML(groupName) + ']]');
+							ajaxify.go('groups');
+						}).catch(app.alertError);
 					}
 				});
 			}

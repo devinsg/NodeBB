@@ -6,6 +6,7 @@
 	"assignee": "Dodijeljeni",
 	"update": "Nadogradnja",
 	"updated": "Nadograđeno",
+	"resolved": "Resolved",
 	"target-purged": "Sadržaj koji je označen zastavom je odbačen i više nije dostupan.",
 
 	"graph-label": "Daily Flags",
@@ -26,6 +27,7 @@
 	"filter-cid-all": "Sve kategorije",
 	"apply-filters": "Primjeni filtere",
 	"more-filters": "More Filters",
+	"fewer-filters": "Fewer Filters",
 
 	"quick-actions": "Quick Actions",
 	"flagged-user": "Označeni korisnici",

@@ -4,14 +4,33 @@ const user = require('../user');
 const topics = require('../topics');
 const posts = require('../posts');
 const meta = require('../meta');
+const privileges = require('../privileges');
 
 const apiHelpers = require('./helpers');
-const doTopicAction = apiHelpers.doTopicAction;
+
+const { doTopicAction } = apiHelpers;
 
 const websockets = require('../socket.io');
 const socketHelpers = require('../socket.io/helpers');
 
 const topicsAPI = module.exports;
+
+topicsAPI.get = async function (caller, data) {
+	const [userPrivileges, topic] = await Promise.all([
+		privileges.topics.get(data.tid, caller.uid),
+		topics.getTopicData(data.tid),
+	]);
+	if (
+		!topic ||
+		!userPrivileges.read ||
+		!userPrivileges['topics:read'] ||
+		!privileges.topics.canViewDeletedScheduled(topic, userPrivileges)
+	) {
+		return null;
+	}
+
+	return topic;
+};
 
 topicsAPI.create = async function (caller, data) {
 	if (!data) {
@@ -20,10 +39,7 @@ topicsAPI.create = async function (caller, data) {
 
 	const payload = { ...data };
 	payload.tags = payload.tags || [];
-	payload.uid = caller.uid;
-	payload.req = apiHelpers.buildReqObject(caller);
-	payload.timestamp = Date.now();
-	payload.fromQueue = false;
+	apiHelpers.setDefaultPostData(caller, payload);
 
 	// Blacklist & Post Queue
 	await meta.blacklist.test(caller.ip);
@@ -44,16 +60,8 @@ topicsAPI.create = async function (caller, data) {
 };
 
 topicsAPI.reply = async function (caller, data) {
-	var payload = {
-		tid: data.tid,
-		uid: caller.uid,
-		req: apiHelpers.buildReqObject(caller),	// For IP recording
-		content: data.content,
-		timestamp: Date.now(),
-		fromQueue: false,
-	};
-
-	if (data.toPid) { payload.toPid = data.toPid; }
+	const payload = { ...data };
+	apiHelpers.setDefaultPostData(caller, payload);
 
 	// Blacklist & Post Queue
 	await meta.blacklist.test(caller.ip);

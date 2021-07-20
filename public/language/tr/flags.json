@@ -6,6 +6,7 @@
 	"assignee": "Vekil",
 	"update": "Güncelle",
 	"updated": "Güncellendi",
+	"resolved": "Çözüldü",
 	"target-purged": "Şikayet edilen içerik temizlendi ve artık mevcut değil.",
 
 	"graph-label": "Günlük Şikayetler",
@@ -26,6 +27,7 @@
 	"filter-cid-all": "Tüm kategoriler",
 	"apply-filters": "Filtreleri Onayla",
 	"more-filters": "Daha Fazla Filtre",
+	"fewer-filters": "Daha az filtre",
 
 	"quick-actions": "Hızlı Eylemler",
 	"flagged-user": "Şikayet Edilen Kullanıcı",
@@ -82,5 +84,5 @@
 	"bulk-actions": "Toplu Aksiyonlar",
 	"bulk-resolve": "Şikayetleri Çözümle",
 	"bulk-success": "%1 şikayet güncellendi",
-	"flagged-timeago-readable": "Flagged <span class=\"timeago\" title=\"%1\"></span> (%2)"
+	"flagged-timeago-readable": "Bayraklandı <span class=\"timeago\" title=\"%1\"></span> (%2)"
 }

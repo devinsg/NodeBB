@@ -33,6 +33,16 @@ groupsAPI.create = async function (caller, data) {
 	return groupData;
 };
 
+groupsAPI.update = async function (caller, data) {
+	const groupName = await groups.getGroupNameByGroupSlug(data.slug);
+	await isOwner(caller, groupName);
+
+	delete data.slug;
+	await groups.update(groupName, data);
+
+	return await groups.getGroupData(data.name || groupName);
+};
+
 groupsAPI.delete = async function (caller, data) {
 	const groupName = await groups.getGroupNameByGroupSlug(data.slug);
 	await isOwner(caller, groupName);
@@ -88,7 +98,7 @@ groupsAPI.join = async function (caller, data) {
 		return;
 	}
 
-	if (isSelf && groupData.private && groupData.disableJoinRequests) {
+	if (!isCallerAdmin && isSelf && groupData.private && groupData.disableJoinRequests) {
 		throw new Error('[[error:group-join-disabled]]');
 	}
 
@@ -153,15 +163,37 @@ groupsAPI.leave = async function (caller, data) {
 	const username = await user.getUserField(data.uid, 'username');
 	const notification = await notifications.create({
 		type: 'group-leave',
-		bodyShort: '[[groups:membership.leave.notification_title, ' + username + ', ' + groupName + ']]',
-		nid: 'group:' + validator.escape(groupName) + ':uid:' + data.uid + ':group-leave',
-		path: '/groups/' + slugify(groupName),
+		bodyShort: `[[groups:membership.leave.notification_title, ${username}, ${groupName}]]`,
+		nid: `group:${validator.escape(groupName)}:uid:${data.uid}:group-leave`,
+		path: `/groups/${slugify(groupName)}`,
 		from: data.uid,
 	});
 	const uids = await groups.getOwners(groupName);
 	await notifications.push(notification, uids);
 
 	logGroupEvent(caller, 'group-leave', {
+		groupName: groupName,
+		targetUid: data.uid,
+	});
+};
+
+groupsAPI.grant = async (caller, data) => {
+	const groupName = await groups.getGroupNameByGroupSlug(data.slug);
+	await isOwner(caller, groupName);
+
+	await groups.ownership.grant(data.uid, groupName);
+	logGroupEvent(caller, 'group-owner-grant', {
+		groupName: groupName,
+		targetUid: data.uid,
+	});
+};
+
+groupsAPI.rescind = async (caller, data) => {
+	const groupName = await groups.getGroupNameByGroupSlug(data.slug);
+	await isOwner(caller, groupName);
+
+	await groups.ownership.rescind(data.uid, groupName);
+	logGroupEvent(caller, 'group-owner-rescind', {
 		groupName: groupName,
 		targetUid: data.uid,
 	});

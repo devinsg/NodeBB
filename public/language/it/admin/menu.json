@@ -1,5 +1,9 @@
 {
-	"dashboard": "Dashboard",
+	"section-dashboard": "Dashboard",
+	"dashboard/overview": "Panoramica",
+	"dashboard/logins": "Accessi",
+	"dashboard/users": "Utenti",
+	"dashboard/topics": "Discussioni",
 	"section-general": "Generale",
 
 	"section-manage": "Gestisci",

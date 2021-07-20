@@ -4,14 +4,15 @@ const winston = require('winston');
 const meta = require('../../meta');
 const plugins = require('../../plugins');
 const middleware = require('../../middleware');
+const writeControllers = require('../../controllers/write');
 const helpers = require('../../controllers/helpers');
 
 const Write = module.exports;
 
 Write.reload = async (params) => {
-	const router = params.router;
+	const { router } = params;
 	let apiSettings = await meta.settings.get('core.api');
-	plugins.registerHook('core', {
+	plugins.hooks.register('core', {
 		hook: 'action:settings.set',
 		method: async (data) => {
 			if (data.plugin === 'core.api') {
@@ -20,7 +21,7 @@ Write.reload = async (params) => {
 		},
 	});
 
-	router.use('/api/v3', function (req, res, next) {
+	router.use('/api/v3', (req, res, next) => {
 		// Require https if configured so
 		if (apiSettings.requireHttps === 'on') {
 			res.set('Upgrade', 'TLS/1.0, HTTP/1.1');
@@ -36,21 +37,13 @@ Write.reload = async (params) => {
 	router.use('/api/v3/categories', require('./categories')());
 	router.use('/api/v3/topics', require('./topics')());
 	router.use('/api/v3/posts', require('./posts')());
+	router.use('/api/v3/flags', require('./flags')());
 	router.use('/api/v3/admin', require('./admin')());
 	router.use('/api/v3/files', require('./files')());
+	router.use('/api/v3/utilities', require('./utilities')());
 
-	router.get('/api/v3/ping', function (req, res) {
-		helpers.formatApiResponse(200, res, {
-			pong: true,
-		});
-	});
-
-	router.post('/api/v3/ping', middleware.authenticate, function (req, res) {
-		helpers.formatApiResponse(200, res, {
-			uid: req.user.uid,
-			received: req.body,
-		});
-	});
+	router.get('/api/v3/ping', writeControllers.utilities.ping.get);
+	router.post('/api/v3/ping', middleware.authenticateRequest, middleware.ensureLoggedIn, writeControllers.utilities.ping.post);
 
 	/**
 	 * Plugins can add routes to the Write API by attaching a listener to the
@@ -70,4 +63,10 @@ Write.reload = async (params) => {
 	router.use('/api/v3', (req, res) => {
 		helpers.formatApiResponse(404, res);
 	});
+};
+
+Write.cleanup = (req) => {
+	if (req && req.session) {
+		req.session.destroy();
+	}
 };

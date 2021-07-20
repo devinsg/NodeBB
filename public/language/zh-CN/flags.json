@@ -6,6 +6,7 @@
 	"assignee": "受委托人",
 	"update": "更新",
 	"updated": "已更新",
+	"resolved": "Resolved",
 	"target-purged": "被举报的内容已经被清除，不再可用。",
 
 	"graph-label": "日举报",
@@ -26,6 +27,7 @@
 	"filter-cid-all": "全部版块",
 	"apply-filters": "应用过滤器",
 	"more-filters": "更多过滤器",
+	"fewer-filters": "Fewer Filters",
 
 	"quick-actions": "快速操作",
 	"flagged-user": "被举报的用户",

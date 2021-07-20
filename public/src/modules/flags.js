@@ -1,7 +1,7 @@
 'use strict';
 
 
-define('flags', function () {
+define('flags', ['hooks', 'components', 'api'], function (hooks, components, api) {
 	var Flag = {};
 	var flagModal;
 	var flagCommit;
@@ -9,8 +9,7 @@ define('flags', function () {
 
 	Flag.showFlagModal = function (data) {
 		app.parseAndTranslate('partials/modals/flag_modal', data, function (html) {
-			flagModal = $(html);
-
+			flagModal = html;
 			flagModal.on('hidden.bs.modal', function () {
 				flagModal.remove();
 			});
@@ -59,18 +58,32 @@ define('flags', function () {
 		});
 	};
 
+	Flag.resolve = function (flagId) {
+		api.put(`/flags/${flagId}`, {
+			state: 'resolved',
+		}).then(() => {
+			app.alertSuccess('[[flags:resolved]]');
+			hooks.fire('action:flag.resolved', { flagId: flagId });
+		}).catch(app.alertError);
+	};
+
 	function createFlag(type, id, reason) {
 		if (!type || !id || !reason) {
 			return;
 		}
 		var data = { type: type, id: id, reason: reason };
-		socket.emit('flags.create', data, function (err, flagId) {
+		api.post('/flags', data, function (err, flagId) {
 			if (err) {
 				return app.alertError(err.message);
 			}
 
 			flagModal.modal('hide');
 			app.alertSuccess('[[flags:modal-submit-success]]');
+			if (type === 'post') {
+				var postEl = components.get('post', 'pid', id);
+				postEl.find('[component="post/flag"]').addClass('hidden').parent().attr('hidden', '');
+				postEl.find('[component="post/already-flagged"]').removeClass('hidden').parent().attr('hidden', null);
+			}
 			$(window).trigger('action:flag.create', { flagId: flagId, data: data });
 		});
 	}

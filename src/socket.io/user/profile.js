@@ -36,6 +36,7 @@ module.exports = function (SocketUser) {
 		}
 		await user.isAdminOrGlobalModOrSelf(socket.uid, data.uid);
 		await user.checkMinReputation(socket.uid, data.uid, 'min:rep:profile-picture');
+		data.callerUid = socket.uid;
 		return await user.uploadCroppedPicture(data);
 	};
 
@@ -45,6 +46,7 @@ module.exports = function (SocketUser) {
 		}
 		await user.isAdminOrGlobalModOrSelf(socket.uid, data.uid);
 		const userData = await user.getUserFields(data.uid, ['cover:url']);
+		// 'keepAllUserImages' is ignored, since there is explicit user intent
 		await user.removeCoverPicture(data);
 		plugins.hooks.fire('action:user.removeCoverPicture', {
 			callerUid: socket.uid,
@@ -54,7 +56,7 @@ module.exports = function (SocketUser) {
 	};
 
 	async function isPrivilegedOrSelfAndPasswordMatch(socket, data) {
-		const uid = socket.uid;
+		const { uid } = socket;
 		const isSelf = parseInt(uid, 10) === parseInt(data.uid, 10);
 
 		const [isAdmin, isTargetAdmin, isGlobalMod] = await Promise.all([
@@ -113,37 +115,37 @@ module.exports = function (SocketUser) {
 			throw new Error('[[error:invalid-uid]]');
 		}
 
-		if (!data || !(parseInt(data.uid, 10) > 0)) {
+		if (!data || parseInt(data.uid, 10) <= 0) {
 			throw new Error('[[error:invalid-data]]');
 		}
 
 		await user.isAdminOrSelf(socket.uid, data.uid);
 
-		const count = await db.incrObjectField('locks', 'export:' + data.uid + type);
+		const count = await db.incrObjectField('locks', `export:${data.uid}${type}`);
 		if (count > 1) {
 			throw new Error('[[error:already-exporting]]');
 		}
 
-		const child = require('child_process').fork('./src/user/jobs/export-' + type + '.js', [], {
+		const child = require('child_process').fork(`./src/user/jobs/export-${type}.js`, [], {
 			env: process.env,
 		});
 		child.send({ uid: data.uid });
-		child.on('error', async function (err) {
+		child.on('error', async (err) => {
 			winston.error(err.stack);
-			await db.deleteObjectField('locks', 'export:' + data.uid + type);
+			await db.deleteObjectField('locks', `export:${data.uid}${type}`);
 		});
-		child.on('exit', async function () {
-			await db.deleteObjectField('locks', 'export:' + data.uid + type);
+		child.on('exit', async () => {
+			await db.deleteObjectField('locks', `export:${data.uid}${type}`);
 			const userData = await user.getUserFields(data.uid, ['username', 'userslug']);
 			const n = await notifications.create({
-				bodyShort: '[[notifications:' + type + '-exported, ' + userData.username + ']]',
-				path: '/api/user/uid/' + userData.userslug + '/export/' + type,
-				nid: type + ':export:' + data.uid,
+				bodyShort: `[[notifications:${type}-exported, ${userData.username}]]`,
+				path: `/api/user/uid/${userData.userslug}/export/${type}`,
+				nid: `${type}:export:${data.uid}`,
 				from: data.uid,
 			});
 			await notifications.push(n, [socket.uid]);
 			await events.log({
-				type: 'export:' + type,
+				type: `export:${type}`,
 				uid: socket.uid,
 				targetUid: data.uid,
 				ip: socket.ip,

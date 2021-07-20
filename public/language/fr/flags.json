@@ -6,6 +6,7 @@
 	"assignee": "Assigné",
 	"update": "Mettre à jour",
 	"updated": "Mis à jour",
+	"resolved": "Résolu",
 	"target-purged": "Le rapport pour ce signalement a été supprimé et n'est plus accessible",
 
 	"graph-label": "Signalements du jour",
@@ -26,6 +27,7 @@
 	"filter-cid-all": "Toutes les catégories",
 	"apply-filters": "Appliquer les filtres",
 	"more-filters": "Plus de filtres",
+	"fewer-filters": "Enlever les filtres",
 
 	"quick-actions": "Actions Rapide",
 	"flagged-user": "Utilisateurs signalés",

@@ -2,6 +2,7 @@
 
 const util = require('util');
 const winston = require('winston');
+
 const sleep = util.promisify(setTimeout);
 
 const api = require('../api');
@@ -85,9 +86,10 @@ SocketUser.reset.send = async function (socket, email) {
 	try {
 		await user.reset.send(email);
 		await logEvent('[[success:success]]');
-		await sleep(2500);
+		await sleep(2500 + ((Math.random() * 500) - 250));
 	} catch (err) {
 		await logEvent(err.message);
+		await sleep(2500 + ((Math.random() * 500) - 250));
 		const internalErrors = ['[[error:invalid-email]]', '[[error:reset-rate-limited]]'];
 		if (!internalErrors.includes(err.message)) {
 			throw err;
@@ -113,12 +115,12 @@ SocketUser.reset.commit = async function (socket, data) {
 
 	const username = await user.getUserField(uid, 'username');
 	const now = new Date();
-	const parsedDate = now.getFullYear() + '/' + (now.getMonth() + 1) + '/' + now.getDate();
+	const parsedDate = `${now.getFullYear()}/${now.getMonth() + 1}/${now.getDate()}`;
 	emailer.send('reset_notify', uid, {
 		username: username,
 		date: parsedDate,
 		subject: '[[email:reset.notify.subject]]',
-	}).catch(err => winston.error('[emailer.send] ' + err.stack));
+	}).catch(err => winston.error(`[emailer.send] ${err.stack}`));
 };
 
 SocketUser.isFollowing = async function (socket, data) {
@@ -146,7 +148,7 @@ SocketUser.saveSettings = async function (socket, data) {
 };
 
 SocketUser.setTopicSort = async function (socket, sort) {
-	sockets.warnDeprecated(socket, 'PUT /api/v3/users/:uid/setting/topicPostSort');
+	sockets.warnDeprecated(socket, 'PUT /api/v3/users/:uid/settings');
 	await api.users.updateSetting(socket, {
 		uid: socket.uid,
 		setting: 'topicPostSort',
@@ -155,7 +157,7 @@ SocketUser.setTopicSort = async function (socket, sort) {
 };
 
 SocketUser.setCategorySort = async function (socket, sort) {
-	sockets.warnDeprecated(socket, 'PUT /api/v3/users/:uid/setting/categoryTopicSort');
+	sockets.warnDeprecated(socket, 'PUT /api/v3/users/:uid/settings');
 	await api.users.updateSetting(socket, {
 		uid: socket.uid,
 		setting: 'categoryTopicSort',
@@ -243,7 +245,7 @@ SocketUser.gdpr.check = async function (socket, data) {
 	if (!isAdmin) {
 		data.uid = socket.uid;
 	}
-	return await db.getObjectField('user:' + data.uid, 'gdpr_consent');
+	return await db.getObjectField(`user:${data.uid}`, 'gdpr_consent');
 };
 
 require('../promisify')(SocketUser);

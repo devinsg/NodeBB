@@ -2,8 +2,9 @@
 
 define('admin/manage/groups', [
 	'categorySelector',
+	'slugify',
 	'api',
-], function (categorySelector, api) {
+], function (categorySelector, slugify, api) {
 	var	Groups = {};
 
 	var intervalId = 0;
@@ -61,15 +62,7 @@ define('admin/manage/groups', [
 				case 'delete':
 					bootbox.confirm('[[admin/manage/groups:alerts.confirm-delete]]', function (confirm) {
 						if (confirm) {
-							socket.emit('groups.delete', {
-								groupName: groupName,
-							}, function (err) {
-								if (err) {
-									return app.alertError(err.message);
-								}
-
-								ajaxify.refresh();
-							});
+							api.del(`/groups/${slugify(groupName)}`, {}).then(ajaxify.refresh).catch(app.alertError);
 						}
 					});
 					break;
@@ -82,8 +75,11 @@ define('admin/manage/groups', [
 	function enableCategorySelectors() {
 		$('.groups-list [component="category-selector"]').each(function () {
 			var nameEncoded = $(this).parents('[data-name-encoded]').attr('data-name-encoded');
-			categorySelector.init($(this), function (selectedCategory) {
-				ajaxify.go('admin/manage/privileges/' + selectedCategory.cid + '?group=' + nameEncoded);
+			categorySelector.init($(this), {
+				onSelect: function (selectedCategory) {
+					ajaxify.go('admin/manage/privileges/' + selectedCategory.cid + '?group=' + nameEncoded);
+				},
+				showLinks: true,
 			});
 		});
 	}

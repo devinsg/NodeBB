@@ -9,6 +9,7 @@ const slugify = require('../slugify');
 const plugins = require('../plugins');
 const groups = require('../groups');
 const meta = require('../meta');
+const analytics = require('../analytics');
 
 module.exports = function (User) {
 	User.create = async function (data) {
@@ -18,14 +19,14 @@ module.exports = function (User) {
 			data.email = String(data.email).trim();
 		}
 
+		await User.isDataValid(data);
+
+		await lock(data.username, '[[error:username-taken]]');
+		if (data.email && data.email !== data.username) {
+			await lock(data.email, '[[error:email-taken]]');
+		}
+
 		try {
-			await lock(data.username, '[[error:username-taken]]');
-			if (data.email) {
-				await lock(data.email, '[[error:email-taken]]');
-			}
-
-			await User.isDataValid(data);
-
 			return await create(data);
 		} finally {
 			await db.deleteObjectFields('locks', [data.username, data.email]);
@@ -79,12 +80,12 @@ module.exports = function (User) {
 		if (isFirstUser) {
 			userData['email:confirmed'] = 1;
 		}
-		await db.setObject('user:' + uid, userData);
+		await db.setObject(`user:${uid}`, userData);
 
 		const bulkAdd = [
 			['username:uid', userData.uid, userData.username],
-			['user:' + userData.uid + ':usernames', timestamp, userData.username + ':' + timestamp],
-			['username:sorted', 0, userData.username.toLowerCase() + ':' + userData.uid],
+			[`user:${userData.uid}:usernames`, timestamp, `${userData.username}:${timestamp}`],
+			['username:sorted', 0, `${userData.username.toLowerCase()}:${userData.uid}`],
 			['userslug:uid', userData.uid, userData.userslug],
 			['users:joindate', timestamp, userData.uid],
 			['users:online', timestamp, userData.uid],
@@ -94,12 +95,12 @@ module.exports = function (User) {
 
 		if (userData.email) {
 			bulkAdd.push(['email:uid', userData.uid, userData.email.toLowerCase()]);
-			bulkAdd.push(['email:sorted', 0, userData.email.toLowerCase() + ':' + userData.uid]);
-			bulkAdd.push(['user:' + userData.uid + ':emails', timestamp, userData.email + ':' + timestamp]);
+			bulkAdd.push(['email:sorted', 0, `${userData.email.toLowerCase()}:${userData.uid}`]);
+			bulkAdd.push([`user:${userData.uid}:emails`, timestamp, `${userData.email}:${timestamp}`]);
 		}
 
 		if (userData.fullname) {
-			bulkAdd.push(['fullname:sorted', 0, userData.fullname.toLowerCase() + ':' + userData.uid]);
+			bulkAdd.push(['fullname:sorted', 0, `${userData.fullname.toLowerCase()}:${userData.uid}`]);
 		}
 
 		const groupsToJoin = ['registered-users'].concat(
@@ -108,6 +109,7 @@ module.exports = function (User) {
 
 		await Promise.all([
 			db.incrObjectField('global', 'userCount'),
+			analytics.increment('registrations'),
 			db.sortedSetAddBulk(bulkAdd),
 			groups.join(groupsToJoin, userData.uid),
 			User.notifications.sendWelcomeNotification(userData.uid),
@@ -118,7 +120,7 @@ module.exports = function (User) {
 		if (userData.email && userData.uid > 1 && meta.config.requireEmailConfirmation) {
 			User.email.sendValidationEmail(userData.uid, {
 				email: userData.email,
-			}).catch(err => winston.error('[user.create] Validation email failed to send\n[emailer.send] ' + err.stack));
+			}).catch(err => winston.error(`[user.create] Validation email failed to send\n[emailer.send] ${err.stack}`));
 		}
 		if (userNameChanged) {
 			await User.notifications.sendNameChangeNotification(userData.uid, userData.username);
@@ -147,7 +149,7 @@ module.exports = function (User) {
 		}
 
 		if (!utils.isUserNameValid(userData.username) || !userData.userslug) {
-			throw new Error('[[error:invalid-username, ' + userData.username + ']]');
+			throw new Error(`[[error:invalid-username, ${userData.username}]]`);
 		}
 
 		if (userData.password) {
@@ -186,14 +188,14 @@ module.exports = function (User) {
 
 	User.uniqueUsername = async function (userData) {
 		let numTries = 0;
-		let username = userData.username;
+		let { username } = userData;
 		while (true) {
 			/* eslint-disable no-await-in-loop */
 			const exists = await meta.userOrGroupExists(username);
 			if (!exists) {
 				return numTries ? username : null;
 			}
-			username = userData.username + ' ' + numTries.toString(32);
+			username = `${userData.username} ${numTries.toString(32)}`;
 			numTries += 1;
 		}
 	};

@@ -2,7 +2,19 @@
 
 (function (factory) {
 	function loadClient(language, namespace) {
-		return Promise.resolve(jQuery.getJSON([config.assetBaseUrl, 'language', language, namespace].join('/') + '.json?' + config['cache-buster']));
+		return new Promise(function (resolve, reject) {
+			jQuery.getJSON([config.assetBaseUrl, 'language', language, namespace].join('/') + '.json?' + config['cache-buster'], function (data) {
+				const payload = {
+					language: language,
+					namespace: namespace,
+					data: data,
+				};
+				$(window).trigger('action:translator.loadClient', payload);
+				resolve(payload.promise ? Promise.resolve(payload.promise) : data);
+			}).fail(function (jqxhr, textStatus, error) {
+				reject(new Error(textStatus + ', ' + error));
+			});
+		});
 	}
 	var warn = function () { console.warn.apply(console, arguments); };
 	if (typeof define === 'function' && define.amd) {
@@ -286,6 +298,9 @@
 					var out = translated;
 					translatedArgs.forEach(function (arg, i) {
 						var escaped = arg.replace(/%(?=\d)/g, '&#37;').replace(/\\,/g, '&#44;');
+						// fix double escaped translation keys, see https://github.com/NodeBB/NodeBB/issues/9206
+						escaped = escaped.replace(/&amp;lsqb;/g, '&lsqb;')
+							.replace(/&amp;rsqb;/g, '&rsqb;');
 						out = out.replace(new RegExp('%' + (i + 1), 'g'), escaped);
 					});
 					return out;
@@ -305,7 +320,8 @@
 				warn('[translator] Parameter `namespace` is ' + namespace + (namespace === '' ? '(empty string)' : ''));
 				translation = Promise.resolve({});
 			} else {
-				this.translations[namespace] = this.translations[namespace] || this.load(this.lang, namespace).catch(function () { return {}; });
+				this.translations[namespace] = this.translations[namespace] ||
+					this.load(this.lang, namespace).catch(function () { return {}; });
 				translation = this.translations[namespace];
 			}
 
@@ -544,6 +560,18 @@
 				Translator.cache[code].translations = {};
 			});
 		},
+
+		flushNamespace: function (namespace) {
+			Object.keys(Translator.cache).forEach(function (code) {
+				if (Translator.cache[code] &&
+					Translator.cache[code].translations &&
+					Translator.cache[code].translations[namespace]
+				) {
+					Translator.cache[code].translations[namespace] = null;
+				}
+			});
+		},
+
 
 		/**
 		 * Legacy translator function for backwards compatibility

@@ -6,6 +6,7 @@
 	"assignee": "المحال إليه",
 	"update": "تحديث",
 	"updated": "تم التحديث",
+	"resolved": "Resolved",
 	"target-purged": "The content this flag referred to has been purged and is no longer available.",
 
 	"graph-label": "Daily Flags",
@@ -26,6 +27,7 @@
 	"filter-cid-all": "All categories",
 	"apply-filters": "Apply Filters",
 	"more-filters": "More Filters",
+	"fewer-filters": "Fewer Filters",
 
 	"quick-actions": "اجراءات سريعه",
 	"flagged-user": "Flagged User",

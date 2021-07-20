@@ -1,12 +1,17 @@
 'use strict';
 
 const posts = require('../../posts');
+const privileges = require('../../privileges');
 
 const api = require('../../api');
 const helpers = require('../helpers');
 const apiHelpers = require('../../api/helpers');
 
 const Posts = module.exports;
+
+Posts.get = async (req, res) => {
+	helpers.formatApiResponse(200, res, await api.posts.get(req, { pid: req.params.pid }));
+};
 
 Posts.edit = async (req, res) => {
 	const editResult = await api.posts.edit(req, {
@@ -31,6 +36,14 @@ Posts.restore = async (req, res) => {
 
 Posts.delete = async (req, res) => {
 	await api.posts.delete(req, { pid: req.params.pid });
+	helpers.formatApiResponse(200, res);
+};
+
+Posts.move = async (req, res) => {
+	await api.posts.move(req, {
+		pid: req.params.pid,
+		tid: req.body.tid,
+	});
 	helpers.formatApiResponse(200, res);
 };
 
@@ -68,4 +81,36 @@ Posts.unbookmark = async (req, res) => {
 	const data = await mock(req);
 	await api.posts.unbookmark(req, data);
 	helpers.formatApiResponse(200, res);
+};
+
+Posts.getDiffs = async (req, res) => {
+	helpers.formatApiResponse(200, res, await api.posts.getDiffs(req, { ...req.params }));
+};
+
+Posts.loadDiff = async (req, res) => {
+	helpers.formatApiResponse(200, res, await api.posts.loadDiff(req, { ...req.params }));
+};
+
+Posts.restoreDiff = async (req, res) => {
+	helpers.formatApiResponse(200, res, await api.posts.restoreDiff(req, { ...req.params }));
+};
+
+Posts.deleteDiff = async (req, res) => {
+	if (!parseInt(req.params.pid, 10)) {
+		throw new Error('[[error:invalid-data]]');
+	}
+
+	const cid = await posts.getCidByPid(req.params.pid);
+	const [isAdmin, isModerator] = await Promise.all([
+		privileges.users.isAdministrator(req.uid),
+		privileges.users.isModerator(req.uid, cid),
+	]);
+
+	if (!(isAdmin || isModerator)) {
+		return helpers.formatApiResponse(403, res, new Error('[[error:no-privileges]]'));
+	}
+
+	await posts.diffs.delete(req.params.pid, req.params.timestamp, req.uid);
+
+	helpers.formatApiResponse(200, res, await api.posts.getDiffs(req, { ...req.params }));
 };

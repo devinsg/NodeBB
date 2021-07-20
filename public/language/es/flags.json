@@ -6,6 +6,7 @@
 	"assignee": "Asignado",
 	"update": "Actualizar",
 	"updated": "Actualizado",
+	"resolved": "Resolved",
 	"target-purged": "El contenido al que se refiere este indicador ha sido purgado y ya no está disponible.",
 
 	"graph-label": "Daily Flags",
@@ -26,6 +27,7 @@
 	"filter-cid-all": "Todas las categorias",
 	"apply-filters": "Aplicar filtros",
 	"more-filters": "More Filters",
+	"fewer-filters": "Fewer Filters",
 
 	"quick-actions": "Quick Actions",
 	"flagged-user": "Usuario marcado",

@@ -24,5 +24,8 @@
     "interstitial.errors-found": "Nous n'avons pas pu compléter votre inscription :",
     "gdpr_agree_data": "J'accepte la collecte et le traitement de mes données personnelles sur ce site.",
     "gdpr_agree_email": "J'accepte de recevoir des courriels et des notifications de ce site Web.",
-    "gdpr_consent_denied": "Vous devez accepter que ce site puisse collecter et traiter vos données, et pour vous envoyer des courriels."
+    "gdpr_consent_denied": "Vous devez accepter que ce site puisse collecter et traiter vos données, et pour vous envoyer des courriels.",
+    "invite.error-admin-only": "Les inscriptions sont désactivés. Veuillez contacter un administrateur pour plus de détails.",
+    "invite.error-invite-only": "Les inscriptions sont désactivés. Seules les invitations sont acceptés pour accéder au forum.",
+    "invite.error-invalid-data": "Renseignements erronées. Veuillez contacter un administrateur pour plus de détails"
 }

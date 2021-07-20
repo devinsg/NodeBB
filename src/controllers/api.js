@@ -5,10 +5,7 @@ const nconf = require('nconf');
 
 const meta = require('../meta');
 const user = require('../user');
-const posts = require('../posts');
-const topics = require('../topics');
 const categories = require('../categories');
-const privileges = require('../privileges');
 const plugins = require('../plugins');
 const translator = require('../translator');
 const languages = require('../languages');
@@ -22,7 +19,7 @@ const socketioOrigins = nconf.get('socket.io:origins');
 const websocketAddress = nconf.get('socket.io:address') || '';
 
 apiController.loadConfig = async function (req) {
-	let config = {
+	const config = {
 		relative_path,
 		upload_url,
 		assetBaseUrl: `${relative_path}/assets`,
@@ -30,6 +27,7 @@ apiController.loadConfig = async function (req) {
 		browserTitle: validator.escape(String(meta.config.browserTitle || meta.config.title || 'NodeBB')),
 		titleLayout: (meta.config.titleLayout || '{pageTitle} | {browserTitle}').replace(/{/g, '&#123;').replace(/}/g, '&#125;'),
 		showSiteTitle: meta.config.showSiteTitle === 1,
+		maintenanceMode: meta.config.maintenanceMode === 1,
 		minimumTitleLength: meta.config.minimumTitleLength,
 		maximumTitleLength: meta.config.maximumTitleLength,
 		minimumPostLength: meta.config.minimumPostLength,
@@ -38,6 +36,7 @@ apiController.loadConfig = async function (req) {
 		maximumTagsPerTopic: meta.config.maximumTagsPerTopic || 5,
 		minimumTagLength: meta.config.minimumTagLength || 3,
 		maximumTagLength: meta.config.maximumTagLength || 15,
+		undoTimeout: meta.config.undoTimeout || 0,
 		useOutgoingLinksPage: meta.config.useOutgoingLinksPage === 1,
 		outgoingLinksWhitelist: meta.config.useOutgoingLinksPage === 1 ? meta.config['outgoingLinks:whitelist'] : undefined,
 		allowGuestHandles: meta.config.allowGuestHandles === 1,
@@ -49,8 +48,8 @@ apiController.loadConfig = async function (req) {
 		socketioTransports,
 		socketioOrigins,
 		websocketAddress,
-		maxReconnectionAttempts: meta.config.maxReconnectionAttempts || 5,
-		reconnectionDelay: meta.config.reconnectionDelay || 1500,
+		maxReconnectionAttempts: meta.config.maxReconnectionAttempts,
+		reconnectionDelay: meta.config.reconnectionDelay,
 		topicsPerPage: meta.config.topicsPerPage || 20,
 		postsPerPage: meta.config.postsPerPage || 20,
 		maximumFileSize: meta.config.maximumFileSize,
@@ -80,11 +79,16 @@ apiController.loadConfig = async function (req) {
 		thumbs: {
 			size: meta.config.topicThumbSize,
 		},
+		iconBackgrounds: await user.getIconBackgrounds(req.uid),
 	};
 
 	let settings = config;
+	let isAdminOrGlobalMod;
 	if (req.loggedIn) {
-		settings = await user.getSettings(req.uid);
+		([settings, isAdminOrGlobalMod] = await Promise.all([
+			user.getSettings(req.uid),
+			user.isAdminOrGlobalMod(req.uid),
+		]));
 	}
 
 	// Handle old skin configs
@@ -94,88 +98,25 @@ apiController.loadConfig = async function (req) {
 	config.usePagination = settings.usePagination;
 	config.topicsPerPage = settings.topicsPerPage;
 	config.postsPerPage = settings.postsPerPage;
-	config.userLang = validator.escape(String((req.query.lang ? req.query.lang : null) || settings.userLang || config.defaultLang));
+	config.userLang = validator.escape(
+		String((req.query.lang ? req.query.lang : null) || settings.userLang || config.defaultLang)
+	);
 	config.acpLang = validator.escape(String((req.query.lang ? req.query.lang : null) || settings.acpLang));
 	config.openOutgoingLinksInNewTab = settings.openOutgoingLinksInNewTab;
 	config.topicPostSort = settings.topicPostSort || config.topicPostSort;
 	config.categoryTopicSort = settings.categoryTopicSort || config.categoryTopicSort;
 	config.topicSearchEnabled = settings.topicSearchEnabled || false;
 	config.bootswatchSkin = (meta.config.disableCustomUserSkins !== 1 && settings.bootswatchSkin && settings.bootswatchSkin !== '') ? settings.bootswatchSkin : '';
-	config = await plugins.hooks.fire('filter:config.get', config);
-	return config;
+
+	// Overrides based on privilege
+	config.disableChatMessageEditing = isAdminOrGlobalMod ? false : config.disableChatMessageEditing;
+
+	return await plugins.hooks.fire('filter:config.get', config);
 };
 
 apiController.getConfig = async function (req, res) {
 	const config = await apiController.loadConfig(req);
 	res.json(config);
-};
-
-apiController.getPostData = async function (pid, uid) {
-	const [userPrivileges, post, voted] = await Promise.all([
-		privileges.posts.get([pid], uid),
-		posts.getPostData(pid),
-		posts.hasVoted(pid, uid),
-	]);
-	if (!post) {
-		return null;
-	}
-	Object.assign(post, voted);
-
-	const userPrivilege = userPrivileges[0];
-	if (!userPrivilege.read || !userPrivilege['topics:read']) {
-		return null;
-	}
-
-	post.ip = userPrivilege.isAdminOrMod ? post.ip : undefined;
-	const selfPost = uid && uid === parseInt(post.uid, 10);
-	if (post.deleted && !(userPrivilege.isAdminOrMod || selfPost)) {
-		post.content = '[[topic:post_is_deleted]]';
-	}
-	return post;
-};
-
-apiController.getTopicData = async function (tid, uid) {
-	const [userPrivileges, topic] = await Promise.all([
-		privileges.topics.get(tid, uid),
-		topics.getTopicData(tid),
-	]);
-	if (!topic || !userPrivileges.read || !userPrivileges['topics:read'] || (topic.deleted && !userPrivileges.view_deleted)) {
-		return null;
-	}
-	return topic;
-};
-
-apiController.getCategoryData = async function (cid, uid) {
-	const [userPrivileges, category] = await Promise.all([
-		privileges.categories.get(cid, uid),
-		categories.getCategoryData(cid),
-	]);
-	if (!category || !userPrivileges.read) {
-		return null;
-	}
-	return category;
-};
-
-apiController.getObject = async function (req, res, next) {
-	const methods = {
-		post: apiController.getPostData,
-		topic: apiController.getTopicData,
-		category: apiController.getCategoryData,
-	};
-	const method = methods[req.params.type];
-	if (!method) {
-		return next();
-	}
-	try {
-		const result = await method(req.params.id, req.uid);
-		if (!result) {
-			return next();
-		}
-
-		res.json(result);
-	} catch (err) {
-		next(err);
-	}
 };
 
 apiController.getModerators = async function (req, res) {

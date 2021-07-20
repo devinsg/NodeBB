@@ -6,6 +6,7 @@
 	"assignee": "ผู้ได้รับมอบหมาย",
 	"update": "อัพเดท",
 	"updated": "ได้รับการอัพเดท",
+	"resolved": "Resolved",
 	"target-purged": "เนื้อหาที่ธงนี้อ้างถึงถูกลบออกและไม่มีอยู่ในระบบอีกต่อไป",
 
 	"graph-label": "Daily Flags",
@@ -26,6 +27,7 @@
 	"filter-cid-all": "ทุกหมวดหมู่",
 	"apply-filters": "ใช้งานฟิลเตอร์",
 	"more-filters": "More Filters",
+	"fewer-filters": "Fewer Filters",
 
 	"quick-actions": "Quick Actions",
 	"flagged-user": "ผู้ใช้ที่ถูกปักธง",

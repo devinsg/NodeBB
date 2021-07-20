@@ -1,20 +1,19 @@
 'use strict';
 
-var _ = require('lodash');
+const _ = require('lodash');
 const validator = require('validator');
-const path = require('path');
 
-var db = require('../database');
-var posts = require('../posts');
-var utils = require('../utils');
-var plugins = require('../plugins');
-var meta = require('../meta');
-var user = require('../user');
-var categories = require('../categories');
-var privileges = require('../privileges');
-var social = require('../social');
+const db = require('../database');
+const posts = require('../posts');
+const utils = require('../utils');
+const plugins = require('../plugins');
+const meta = require('../meta');
+const user = require('../user');
+const categories = require('../categories');
+const privileges = require('../privileges');
+const social = require('../social');
 
-var Topics = module.exports;
+const Topics = module.exports;
 
 require('./data')(Topics);
 require('./create')(Topics);
@@ -28,14 +27,18 @@ require('./posts')(Topics);
 require('./follow')(Topics);
 require('./tags')(Topics);
 require('./teaser')(Topics);
+Topics.scheduled = require('./scheduled');
 require('./suggested')(Topics);
 require('./tools')(Topics);
 Topics.thumbs = require('./thumbs');
 require('./bookmarks')(Topics);
 require('./merge')(Topics);
+Topics.events = require('./events');
 
-Topics.exists = async function (tid) {
-	return await db.exists('topic:' + tid);
+Topics.exists = async function (tids) {
+	return await db.exists(
+		Array.isArray(tids) ? tids.map(tid => `topic:${tid}`) : `topic:${tids}`
+	);
 };
 
 Topics.getTopicsFromSet = async function (set, uid, start, stop) {
@@ -76,18 +79,29 @@ Topics.getTopicsByTids = async function (tids, options) {
 			return postData.map(p => p.handle);
 		}
 
+		async function loadShowfullnameSettings() {
+			if (meta.config.hideFullname) {
+				return uids.map(() => ({ showfullname: false }));
+			}
+			const data = await db.getObjectsFields(uids.map(uid => `user:${uid}:settings`), ['showfullname']);
+			data.forEach((settings) => {
+				settings.showfullname = parseInt(settings.showfullname, 10) === 1;
+			});
+			return data;
+		}
+
 		const [teasers, users, userSettings, categoriesData, guestHandles, thumbs] = await Promise.all([
 			Topics.getTeasers(topics, options),
 			user.getUsersFields(uids, ['uid', 'username', 'fullname', 'userslug', 'reputation', 'postcount', 'picture', 'signature', 'banned', 'status']),
-			user.getMultipleUserSettings(uids),
+			loadShowfullnameSettings(),
 			categories.getCategoriesFields(cids, ['cid', 'name', 'slug', 'icon', 'backgroundImage', 'imageClass', 'bgColor', 'color', 'disabled']),
 			loadGuestHandles(),
-			Topics.thumbs.get(tids),
+			Topics.thumbs.load(topics),
 		]);
 
 		users.forEach((userObj, idx) => {
 			// Hide fullname if needed
-			if (meta.config.hideFullname || !userSettings[idx].showfullname) {
+			if (!userSettings[idx].showfullname) {
 				userObj.fullname = undefined;
 			}
 		});
@@ -102,20 +116,18 @@ Topics.getTopicsByTids = async function (tids, options) {
 		};
 	}
 
-	const [result, tags, hasRead, isIgnored, bookmarks, callerSettings] = await Promise.all([
+	const [result, hasRead, isIgnored, bookmarks, callerSettings] = await Promise.all([
 		loadTopics(),
-		Topics.getTopicsTagsObjects(tids),
 		Topics.hasReadTopics(tids, uid),
 		Topics.isIgnoring(tids, uid),
 		Topics.getUserBookmarks(tids, uid),
 		user.getSettings(uid),
 	]);
 
-	const sortOldToNew = callerSettings.topicPostSort === 'newest_to_oldest';
-	result.topics.forEach(function (topic, i) {
+	const sortNewToOld = callerSettings.topicPostSort === 'newest_to_oldest';
+	result.topics.forEach((topic, i) => {
 		if (topic) {
 			topic.thumbs = result.thumbs[i];
-			restoreThumbValue(topic);
 			topic.category = result.categoriesMap[topic.cid];
 			topic.user = topic.uid ? result.usersMap[topic.uid] : { ...result.usersMap[topic.uid] };
 			if (result.tidToGuestHandle[topic.tid]) {
@@ -123,12 +135,10 @@ Topics.getTopicsByTids = async function (tids, options) {
 				topic.user.displayname = topic.user.username;
 			}
 			topic.teaser = result.teasers[i] || null;
-			topic.tags = tags[i];
-
 			topic.isOwner = topic.uid === parseInt(uid, 10);
 			topic.ignored = isIgnored[i];
 			topic.unread = parseInt(uid, 10) > 0 && !hasRead[i] && !isIgnored[i];
-			topic.bookmark = sortOldToNew ?
+			topic.bookmark = sortNewToOld ?
 				Math.max(1, topic.postcount + 2 - bookmarks[i]) :
 				Math.min(topic.postcount, bookmarks[i] + 1);
 			topic.unreplied = !topic.teaser;
@@ -143,21 +153,6 @@ Topics.getTopicsByTids = async function (tids, options) {
 	return hookResult.topics;
 };
 
-// Note: Backwards compatibility with old thumb logic, remove in v1.17.0
-function restoreThumbValue(topic) {
-	const isArray = Array.isArray(topic.thumbs);
-	if (isArray && !topic.thumbs.length && topic.thumb) {
-		topic.thumbs = [{
-			id: topic.tid,
-			name: path.basename(topic.thumb),
-			url: topic.thumb,
-		}];
-	} else if (isArray && topic.thumbs.length) {
-		topic.thumb = topic.thumbs[0].url;
-	}
-}
-// end
-
 Topics.getTopicWithPosts = async function (topicData, set, uid, start, stop, reverse) {
 	const [
 		posts,
@@ -171,6 +166,7 @@ Topics.getTopicWithPosts = async function (topicData, set, uid, start, stop, rev
 		merger,
 		related,
 		thumbs,
+		events,
 	] = await Promise.all([
 		getMainPostAndReplies(topicData, set, uid, start, stop, reverse),
 		categories.getCategoryData(topicData.cid),
@@ -181,13 +177,14 @@ Topics.getTopicWithPosts = async function (topicData, set, uid, start, stop, rev
 		social.getActivePostSharing(),
 		getDeleter(topicData),
 		getMerger(topicData),
-		getRelated(topicData, uid),
-		Topics.thumbs.get(topicData.tid),
+		Topics.getRelatedTopics(topicData, uid),
+		Topics.thumbs.load([topicData]),
+		Topics.events.get(topicData.tid, uid),
 	]);
 
-	topicData.thumbs = thumbs;
-	restoreThumbValue(topicData);
+	topicData.thumbs = thumbs[0];
 	topicData.posts = posts;
+	topicData.events = events;
 	topicData.category = category;
 	topicData.tagWhitelist = tagWhitelist[0];
 	topicData.minTags = category.minTags;
@@ -235,7 +232,7 @@ async function getMainPostAndReplies(topic, set, uid, start, stop, reverse) {
 	if (!postData.length) {
 		return [];
 	}
-	var replies = postData;
+	let replies = postData;
 	if (topic.mainPid && start === 0) {
 		postData[0].index = 0;
 		replies = postData.slice(1);
@@ -268,12 +265,6 @@ async function getMerger(topicData) {
 	return merger;
 }
 
-async function getRelated(topicData, uid) {
-	const tags = await Topics.getTopicTagsObjects(topicData.tid);
-	topicData.tags = tags;
-	return await Topics.getRelatedTopics(topicData, uid);
-}
-
 Topics.getMainPost = async function (tid, uid) {
 	const mainPosts = await Topics.getMainPosts([tid], uid);
 	return Array.isArray(mainPosts) && mainPosts.length ? mainPosts[0] : null;
@@ -294,7 +285,7 @@ Topics.getMainPosts = async function (tids, uid) {
 
 async function getMainPosts(mainPids, uid) {
 	const postData = await posts.getPostsByPids(mainPids, uid);
-	postData.forEach(function (post) {
+	postData.forEach((post) => {
 		if (post) {
 			post.index = 0;
 		}
